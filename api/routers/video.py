@@ -1,0 +1,318 @@
+"""
+Video generation endpoints
+
+Supports both synchronous and asynchronous video generation.
+"""
+
+import os
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Request
+from loguru import logger
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from api.dependencies import MilitaryVideoGenDep
+from api.errors import internal_server_error
+from api.public_paths import to_public_file_url
+from api.schemas.video import (
+    VideoGenerateAsyncResponse,
+    VideoGenerateRequest,
+    VideoGenerateResponse,
+)
+from api.tasks import TaskType, task_manager
+from military_video_gen.database.runtime_jobs import create_runtime_job
+from military_video_gen.database.session import get_db_session
+from military_video_gen.research.gate import enforce_verified_storyboard_gate
+from military_video_gen.utils.media_validation import probe_media_file
+from military_video_gen.utils.safety import sanitize_error_message
+
+router = APIRouter(prefix="/video", tags=["Video Generation"])
+DBSession = Annotated[AsyncSession, Depends(get_db_session)]
+
+
+def path_to_url(request: Request, file_path: str) -> str:
+    """Convert an allowlisted local path to an accessible URL."""
+    return to_public_file_url(request, file_path)
+
+
+@router.post("/generate/sync", response_model=VideoGenerateResponse)
+async def generate_video_sync(
+    request_body: VideoGenerateRequest,
+    military_video_gen: MilitaryVideoGenDep,
+    request: Request,
+    session: DBSession,
+):
+    """
+    Generate video synchronously
+    
+    This endpoint blocks until video generation is complete.
+    Suitable for small videos (< 30 seconds).
+    
+    **Note**: May timeout for large videos. Use `/generate/async` instead.
+    
+    Request body includes all video generation parameters.
+    See VideoGenerateRequest schema for details.
+    
+    Returns path to generated video, duration, and file size.
+    """
+    await enforce_verified_storyboard_gate(session, request_body)
+    try:
+        logger.info(
+            f"Sync video generation request accepted ({len(request_body.text)} chars)"
+        )
+        
+        # Auto-determine media_width and media_height from template meta tags (required)
+        if not request_body.frame_template:
+            raise ValueError("frame_template is required to determine media size")
+        
+        from military_video_gen.services.frame_html import HTMLFrameGenerator
+        from military_video_gen.utils.template_util import resolve_template_path
+        template_path = resolve_template_path(request_body.frame_template)
+        generator = HTMLFrameGenerator(template_path)
+        media_width, media_height = generator.get_media_size()
+        logger.debug(f"Auto-determined media size from template: {media_width}x{media_height}")
+        
+        # Build video generation parameters
+        video_params = {
+            "text": request_body.text,
+            "session_id": request_body.session_id,
+            "confirmed_storyboard": (
+                [scene.model_dump() for scene in request_body.confirmed_storyboard]
+                if request_body.confirmed_storyboard
+                else None
+            ),
+            "verification_mode": request_body.verification_mode,
+            "research_topic": request_body.research_topic,
+            "script_revision": request_body.script_revision,
+            "mode": request_body.mode,
+            "title": request_body.title,
+            "n_scenes": request_body.n_scenes,
+            "min_narration_words": request_body.min_narration_words,
+            "max_narration_words": request_body.max_narration_words,
+            "min_image_prompt_words": request_body.min_image_prompt_words,
+            "max_image_prompt_words": request_body.max_image_prompt_words,
+            "media_width": media_width,
+            "media_height": media_height,
+            "media_workflow": request_body.media_workflow,
+            "video_fps": request_body.video_fps,
+            "frame_template": request_body.frame_template,
+            "prompt_prefix": request_body.prompt_prefix,
+            "bgm_path": request_body.bgm_path,
+            "bgm_volume": request_body.bgm_volume,
+        }
+        
+        # Add TTS workflow if specified
+        if request_body.tts_workflow:
+            video_params["tts_workflow"] = request_body.tts_workflow
+        
+        # Add ref_audio if specified
+        if request_body.ref_audio:
+            video_params["ref_audio"] = request_body.ref_audio
+        
+        # Legacy voice_id support (deprecated)
+        if request_body.voice_id:
+            logger.warning("voice_id parameter is deprecated, please use tts_workflow instead")
+            video_params["voice_id"] = request_body.voice_id
+        
+        # Add custom template parameters if specified
+        if request_body.template_params:
+            video_params["template_params"] = request_body.template_params
+        
+        # Call video generator service
+        result = await task_manager.run_limited(
+            military_video_gen.generate_video,
+            **video_params,
+        )
+        
+        duration = probe_media_file(result.video_path, require_audio=True)
+        file_size = os.path.getsize(result.video_path)
+        
+        # Convert path to URL
+        video_url = path_to_url(request, result.video_path)
+        
+        return VideoGenerateResponse(
+            video_url=video_url,
+            duration=duration,
+            file_size=file_size
+        )
+        
+    except Exception as e:
+        raise internal_server_error("Sync video generation error", e)
+
+
+@router.post("/generate/async", response_model=VideoGenerateAsyncResponse)
+async def generate_video_async(
+    request_body: VideoGenerateRequest,
+    military_video_gen: MilitaryVideoGenDep,
+    request: Request,
+    session: DBSession,
+):
+    """
+    Generate video asynchronously
+    
+    Creates a background task for video generation.
+    Returns immediately with a task_id for tracking progress.
+    
+    **Workflow:**
+    1. Submit video generation request
+    2. Receive task_id in response
+    3. Poll `/api/tasks/{task_id}` to check status
+    4. When status is "completed", retrieve video from result
+    
+    Request body includes all video generation parameters.
+    See VideoGenerateRequest schema for details.
+    
+    Returns task_id for tracking progress.
+    """
+    await enforce_verified_storyboard_gate(session, request_body)
+    try:
+        logger.info(
+            f"Async video generation request accepted ({len(request_body.text)} chars)"
+        )
+        
+        # Reuse an identical active request so client/network retries do not
+        # create duplicate provider work.
+        task, created = task_manager.create_or_get_task(
+            task_type=TaskType.VIDEO_GENERATION,
+            request_params=request_body.model_dump()
+        )
+        if not created:
+            return VideoGenerateAsyncResponse(task_id=task.task_id)
+        if request_body.session_id:
+            try:
+                persisted = await create_runtime_job(
+                    project_id=request_body.session_id,
+                    task=task,
+                    job_type="video_generation",
+                )
+                if not persisted:
+                    raise ValueError("project session was not found")
+            except Exception as exc:
+                task_manager.discard_pending_task(task.task_id)
+                logger.error(
+                    f"Could not persist pending video job {task.task_id}: "
+                    f"{sanitize_error_message(exc)}"
+                )
+                raise
+        
+        # Define async execution function
+        async def execute_video_generation():
+            """Execute video generation in background"""
+            # Auto-determine media_width and media_height from template meta tags (required)
+            if not request_body.frame_template:
+                raise ValueError("frame_template is required to determine media size")
+            
+            from military_video_gen.services.frame_html import HTMLFrameGenerator
+            from military_video_gen.utils.template_util import resolve_template_path
+            template_path = resolve_template_path(request_body.frame_template)
+            generator = HTMLFrameGenerator(template_path)
+            media_width, media_height = generator.get_media_size()
+            logger.debug(f"Auto-determined media size from template: {media_width}x{media_height}")
+
+            def progress_callback(event):
+                message_map = {
+                    "generating_narrations": "生成科普旁白",
+                    "splitting_script": "拆分脚本分镜",
+                    "generating_title": "生成任务标题",
+                    "generating_image_prompts": "生成视觉提示词",
+                    "processing_frame": "处理分镜素材",
+                    "frame_step": "处理分镜素材",
+                    "concatenating": "合成最终视频",
+                    "completed": "任务完成",
+                }
+                action_map = {
+                    "audio": "合成旁白音频",
+                    "media": "生成/下载视觉素材",
+                    "compose": "合成画面字幕",
+                    "video": "渲染分镜视频",
+                }
+
+                message = message_map.get(event.event_type, event.event_type)
+                if event.action:
+                    message = action_map.get(event.action, message)
+                if event.frame_current and event.frame_total:
+                    message = f"{message}：第 {event.frame_current}/{event.frame_total} 个分镜"
+                if event.extra_info:
+                    message = f"{message} - {event.extra_info}"
+
+                task_manager.update_progress(
+                    task.task_id,
+                    current=max(0, min(10000, int(event.progress * 10000))),
+                    total=10000,
+                    message=message,
+                )
+            
+            # Build video generation parameters
+            video_params = {
+                "text": request_body.text,
+                "session_id": request_body.session_id,
+                "confirmed_storyboard": (
+                    [scene.model_dump() for scene in request_body.confirmed_storyboard]
+                    if request_body.confirmed_storyboard
+                    else None
+                ),
+                "verification_mode": request_body.verification_mode,
+                "research_topic": request_body.research_topic,
+                "script_revision": request_body.script_revision,
+                "mode": request_body.mode,
+                "title": request_body.title,
+                "n_scenes": request_body.n_scenes,
+                "min_narration_words": request_body.min_narration_words,
+                "max_narration_words": request_body.max_narration_words,
+                "min_image_prompt_words": request_body.min_image_prompt_words,
+                "max_image_prompt_words": request_body.max_image_prompt_words,
+                "media_width": media_width,
+                "media_height": media_height,
+                "media_workflow": request_body.media_workflow,
+                "video_fps": request_body.video_fps,
+                "frame_template": request_body.frame_template,
+                "prompt_prefix": request_body.prompt_prefix,
+                "bgm_path": request_body.bgm_path,
+                "bgm_volume": request_body.bgm_volume,
+                "progress_callback": progress_callback,
+            }
+            
+            # Add TTS workflow if specified
+            if request_body.tts_workflow:
+                video_params["tts_workflow"] = request_body.tts_workflow
+            
+            # Add ref_audio if specified
+            if request_body.ref_audio:
+                video_params["ref_audio"] = request_body.ref_audio
+            
+            # Legacy voice_id support (deprecated)
+            if request_body.voice_id:
+                logger.warning("voice_id parameter is deprecated, please use tts_workflow instead")
+                video_params["voice_id"] = request_body.voice_id
+            
+            # Add custom template parameters if specified
+            if request_body.template_params:
+                video_params["template_params"] = request_body.template_params
+            
+            result = await military_video_gen.generate_video(**video_params)
+            
+            duration = probe_media_file(result.video_path, require_audio=True)
+            file_size = os.path.getsize(result.video_path)
+            
+            # Convert path to URL
+            video_url = path_to_url(request, result.video_path)
+            
+            return {
+                "video_url": video_url,
+                "duration": duration,
+                "file_size": file_size
+            }
+        
+        # Start execution
+        await task_manager.execute_task(
+            task_id=task.task_id,
+            coro_func=execute_video_generation
+        )
+        
+        return VideoGenerateAsyncResponse(
+            task_id=task.task_id
+        )
+        
+    except Exception as e:
+        raise internal_server_error("Async video generation error", e)
+

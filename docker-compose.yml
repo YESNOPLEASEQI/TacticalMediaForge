@@ -1,0 +1,117 @@
+# Build Arguments Configuration
+# You can override these by setting environment variables before running docker-compose.
+
+services:
+  # Init Service - Ensures config.yaml exists before the API starts.
+  init:
+    image: alpine:latest
+    volumes:
+      - ./:/workspace
+    command: >
+      sh -c '
+        if [ -d /workspace/config.yaml ]; then
+          echo "config.yaml is a directory, removing it...";
+          rm -rf /workspace/config.yaml;
+        fi;
+        if [ ! -f /workspace/config.yaml ] && [ -f /workspace/config.example.yaml ]; then
+          echo "Creating config.yaml from config.example.yaml...";
+          cp /workspace/config.example.yaml /workspace/config.yaml;
+          echo "config.yaml created successfully.";
+        else
+          echo "config.yaml already exists.";
+        fi
+      '
+    restart: "no"
+
+  # API Service - FastAPI backend.
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USE_CN_MIRROR: ${USE_CN_MIRROR:-false}
+    container_name: military-video-gen-api
+    command: .venv/bin/python api/app.py --host 0.0.0.0 --port 8000
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./config.yaml:/app/config.yaml
+      - ./data:/app/data
+      - ./output:/app/output
+    environment:
+      - TZ=Asia/Shanghai
+      - SEARXNG_BASE_URL=${SEARXNG_BASE_URL:-http://searxng:8080}
+      - CRAWL4AI_BASE_URL=${CRAWL4AI_BASE_URL:-http://crawl4ai:11235}
+      - CRAWL4AI_API_TOKEN=${CRAWL4AI_API_TOKEN:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - military-video-gen-network
+
+  searxng:
+    image: searxng/searxng:2026.7.19-6da6eee26
+    profiles: ["research"]
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      - SEARXNG_SECRET=${SEARXNG_SECRET:-}
+    volumes:
+      - ./deploy/searxng/settings.yml:/etc/searxng/settings.yml:ro
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - military-video-gen-network
+
+  crawl4ai:
+    image: unclecode/crawl4ai:0.8.9
+    profiles: ["research"]
+    ports:
+      - "127.0.0.1:12135:11235"
+    environment:
+      - CRAWL4AI_API_TOKEN=${CRAWL4AI_API_TOKEN:-}
+    shm_size: "1gb"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11235/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - military-video-gen-network
+
+networks:
+  military-video-gen-network:
+    driver: bridge

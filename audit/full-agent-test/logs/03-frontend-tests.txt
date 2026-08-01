@@ -1,0 +1,4 @@
+npm test -- --run -> exit 0.
+Test files: 18 passed. Tests: 71 passed. Duration: 6.55s.
+npm run typecheck -> exit 0.
+npm run build -> exit 0; 2,512 modules transformed; largest JS chunk 804.98 kB (263.07 kB gzip).

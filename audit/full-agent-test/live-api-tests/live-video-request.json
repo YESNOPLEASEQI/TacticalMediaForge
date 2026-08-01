@@ -1,0 +1,49 @@
+{
+  "text": "F-16由洛克希德·马丁制造，首架生产型于1978年交付。",
+  "session_id": "1b07c106-eaf4-4ac2-8bbe-73769330f869",
+  "confirmed_storyboard": [
+    {
+      "index": 1,
+      "narration": "F-16由洛克希德·马丁制造，首架生产型于1978年交付。",
+      "visual_description": "F-16 Fighting Falcon / F-16; generic non-identifying military environment; subject at rest with neutral markings; non-operational exterior observation with physically plausible motion; steady wide documentary camera; full subject visible at realistic scale; neutral natural lighting; stable full profile with no identifying details; authentic military documentary, factual visual reconstruction, physically plausible motion; avoid: unverified model-specific details, national or unit insignia, weapon loads or internal structures, named operational locations, speech, captions, singing, or music",
+      "media_prompt": "F-16 Fighting Falcon / F-16; generic non-identifying military environment; subject at rest with neutral markings; non-operational exterior observation with physically plausible motion; steady wide documentary camera; full subject visible at realistic scale; neutral natural lighting; stable full profile with no identifying details; authentic military documentary, factual visual reconstruction, physically plausible motion; avoid: unverified model-specific details, national or unit insignia, weapon loads or internal structures, named operational locations, speech, captions, singing, or music",
+      "estimated_duration": 7.0,
+      "asset_type": "image",
+      "research_job_id": "9f694887-3222-4ae0-bea4-cd017d795c24",
+      "subject_id": null,
+      "claim_ids": ["claim-1", "claim-2"],
+      "visual_fact_ids": [],
+      "field_provenance": {
+        "subject": {"claim_ids": ["claim-1", "claim-2"], "visual_fact_ids": [], "creative": false},
+        "environment": {"claim_ids": [], "visual_fact_ids": [], "creative": true},
+        "opening_state": {"claim_ids": [], "visual_fact_ids": [], "creative": true},
+        "action": {"claim_ids": [], "visual_fact_ids": [], "creative": true},
+        "camera": {"claim_ids": [], "visual_fact_ids": [], "creative": true},
+        "composition": {"claim_ids": [], "visual_fact_ids": [], "creative": true},
+        "lighting": {"claim_ids": [], "visual_fact_ids": [], "creative": true},
+        "ending_frame": {"claim_ids": [], "visual_fact_ids": [], "creative": true}
+      },
+      "fallback_level": "verified_generic",
+      "verification_status": "verified",
+      "negative_constraints": [
+        "unverified model-specific details",
+        "national or unit insignia",
+        "weapon loads or internal structures",
+        "named operational locations",
+        "speech, captions, singing, or music"
+      ],
+      "warnings": []
+    }
+  ],
+  "verification_mode": "verified",
+  "research_topic": "根据公开可靠资料，制作一条10秒左右的F-16战斗机基础科普视频，介绍其研制国家、首飞年代和典型外观特征。对无法确认的信息不要补写，不使用具体作战部署、攻击方法或未证实参数。",
+  "script_revision": 2,
+  "mode": "fixed",
+  "title": "F-16基础科普",
+  "n_scenes": 1,
+  "media_workflow": "selfhost/image_flux.json",
+  "video_fps": 15,
+  "frame_template": "1080x1080/image_minimal_framed.html",
+  "bgm_path": null,
+  "bgm_volume": 0.0
+}

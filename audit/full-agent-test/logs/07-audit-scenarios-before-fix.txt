@@ -1,0 +1,6 @@
+Command: .venv/Scripts/python.exe -m pytest -q tests/audit/test_full_agent_scenarios.py
+Date: 2026-07-27
+Offline/live API use: offline only; no external service calls
+Scenarios collected: 54
+Result: 51 failed, 3 passed, 1 teardown error
+Expected interpretation: failures reproduce the pre-fix security, safety, schema, factuality, task-control, and media-contract gaps. The teardown error is caused by the test trying to patch a configuration field that does not exist before the fix.

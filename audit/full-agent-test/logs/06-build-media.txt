@@ -1,0 +1,5 @@
+uv build --out-dir audit/full-agent-test/logs/build-artifacts -> exit 0.
+Artifacts: wheel 249,160 bytes; sdist 19,044,806 bytes.
+docker compose config --quiet -> exit 0.
+API import smoke test -> exit 0; title/version loaded and 50 routes registered.
+ffprobe bgm/default.mp3 -> exit 0; mp3, 157.946750 seconds, 2,529,519 bytes.

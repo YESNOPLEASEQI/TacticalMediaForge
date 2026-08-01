@@ -1,0 +1,122 @@
+"""
+LLM utility functions for model discovery and connection testing.
+
+Uses the OpenAI-compatible models endpoint.
+"""
+
+import re
+from typing import List, Tuple
+
+import httpx
+from loguru import logger
+
+from military_video_gen.utils.safety import redact_url_for_log, sanitize_error_message
+
+
+def _build_models_url(base_url: str) -> str:
+    """Build a provider models endpoint from a user-entered API base URL."""
+    raw = (base_url or "").strip().rstrip("/")
+    if raw.endswith("/models"):
+        return raw
+
+    normalized = normalize_openai_base_url(base_url)
+
+    if re.search(r"/v\d+(?:\.\d+)?$", normalized):
+        return f"{normalized}/models"
+
+    return f"{normalized}/v1/models"
+
+
+def normalize_openai_base_url(base_url: str) -> str:
+    """Normalize a user-entered OpenAI-compatible Base URL for SDK calls.
+
+    Users sometimes paste a concrete endpoint such as /chat/completions or
+    /models. The OpenAI SDK expects the API root, so concrete endpoint suffixes
+    must be stripped before real model calls.
+    """
+    normalized = (base_url or "").strip().rstrip("/")
+    for suffix in ("/chat/completions", "/completions", "/responses", "/models"):
+        if normalized.endswith(suffix):
+            normalized = normalized[: -len(suffix)].rstrip("/")
+            break
+    return normalized
+
+
+def fetch_available_models(api_key: str, base_url: str, timeout: float = 10.0) -> List[str]:
+    """
+    Fetch available models from an OpenAI-compatible API endpoint.
+    
+    Uses the provider models endpoint with Bearer token authentication.
+    
+    Args:
+        api_key: The API key for authentication
+        base_url: The base URL of the API (e.g., https://api.openai.com/v1).
+            If a chat endpoint is pasted by mistake, it will be normalized.
+        timeout: Request timeout in seconds
+    
+    Returns:
+        List of model IDs available from the API
+    
+    Raises:
+        httpx.HTTPStatusError: If the API returns an error status code
+        httpx.RequestError: If there's a network error
+    """
+    models_url = _build_models_url(base_url)
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    
+    logger.debug(f"Fetching models from: {redact_url_for_log(models_url)}")
+    
+    with httpx.Client(timeout=timeout) as client:
+        response = client.get(models_url, headers=headers)
+        response.raise_for_status()
+        
+        data = response.json()
+        models = [model["id"] for model in data.get("data", [])]
+        
+        # Sort models alphabetically for better UX
+        models.sort()
+        
+        logger.debug(f"Fetched {len(models)} models")
+        return models
+
+
+def test_llm_connection(api_key: str, base_url: str, timeout: float = 10.0) -> Tuple[bool, str, int]:
+    """
+    Test the LLM API connection by attempting to fetch the models list.
+    
+    Args:
+        api_key: The API key for authentication
+        base_url: The base URL of the API
+        timeout: Request timeout in seconds
+    
+    Returns:
+        Tuple of (success: bool, message: str, model_count: int)
+        - success: True if connection succeeded
+        - message: Human-readable status message
+        - model_count: Number of models available (0 if failed)
+    """
+    try:
+        models = fetch_available_models(api_key, base_url, timeout)
+        return True, f"Connection successful! {len(models)} models available.", len(models)
+    except httpx.HTTPStatusError as e:
+        status_code = e.response.status_code
+        if status_code == 401:
+            return False, "Authentication failed: Invalid API Key", 0
+        elif status_code == 403:
+            return False, "Access forbidden: Check your API Key permissions", 0
+        elif status_code == 404:
+            return False, "API endpoint not found: Check your Base URL", 0
+        else:
+            return False, f"API error: HTTP {status_code}", 0
+    except httpx.ConnectError:
+        return False, "Connection failed: Cannot reach the server", 0
+    except httpx.TimeoutException:
+        return False, "Connection timeout: Server did not respond in time", 0
+    except Exception as e:
+        safe_error = sanitize_error_message(e)
+        logger.error(f"LLM connection test error: {safe_error}")
+        return False, f"Error: {safe_error}", 0

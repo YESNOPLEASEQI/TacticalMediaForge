@@ -1,0 +1,4 @@
+npm audit --audit-level=high -> exit 1.
+Finding: postcss <=8.5.17, high severity path traversal in previous source map auto-loading; direct fix available.
+Python advisory/static tools (pip-audit, bandit) are not installed or configured.
+Credential filename/pattern scan found only documentation and startup-script references; no tracked .env/private-key file.

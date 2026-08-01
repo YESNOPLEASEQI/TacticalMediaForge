@@ -1,0 +1,139 @@
+{
+  "run_date": "2026-07-28",
+  "timezone": "Asia/Shanghai",
+  "scope": "minimal_live_api_and_e2e_only",
+  "mock_used": false,
+  "project": {
+    "id": "1b07c106-eaf4-4ac2-8bbe-73769330f869",
+    "title": "F-16基础科普",
+    "status": "completed",
+    "current_stage": "output"
+  },
+  "research": {
+    "job_id": "9f694887-3222-4ae0-bea4-cd017d795c24",
+    "status": "completed",
+    "research_status": "reference_ready",
+    "verification_status": "verified",
+    "script_revision": 2,
+    "input_hash": "fde632a83e332fc91c079889159d6990d26da8eef4c73b797dd7ee9404132491",
+    "queries": [
+      "F-16 fighter aircraft first flight manufacturer history",
+      "F-16 fighter aircraft official manufacturer design",
+      "F-16 site:lockheedmartin.com history first flight design"
+    ],
+    "source_count": 1,
+    "source": {
+      "title": "Lockheed Martin Commemorates 25th Anniversary of First Global Production F-16 Delivery - Aug 18, 2003",
+      "url": "https://news.lockheedmartin.com/2003-08-18-Lockheed-Martin-Commemorates-25th-Anniversary-of-First-Global-Production-F-16-Delivery",
+      "classification": "manufacturer",
+      "score": 0.8
+    },
+    "verified_claim_count": 2,
+    "warnings": [],
+    "omitted_unconfirmed_requested_details": [
+      "首飞年代",
+      "典型外观特征"
+    ]
+  },
+  "services": {
+    "searxng": {"configured": true, "live_call": true, "status": "passed", "http_status": 200, "real_result_count": 8},
+    "crawl4ai": {"configured": true, "live_call": true, "status": "passed", "http_status": 200},
+    "deepseek": {"configured": true, "live_call": true, "status": "passed", "endpoint": "https://api.deepseek.com", "model": "deepseek-v4-pro"},
+    "comfyui": {"configured": true, "live_call": true, "status": "passed", "endpoint": "http://127.0.0.1:8290", "version": "0.28.0", "device": "NVIDIA L40", "workflow": "selfhost/image_flux.json"},
+    "edge_tts": {"configured": true, "live_call": true, "status": "passed", "voice": "zh-CN-YunjianNeural", "speed": 1.2},
+    "ffmpeg": {"configured": true, "live_call": true, "status": "passed"},
+    "file_download": {"configured": true, "live_call": true, "status": "passed", "http_status": 200}
+  },
+  "unconfigured_optional_services": {
+    "openai": ["OPENAI_API_KEY"],
+    "dashscope": ["DASHSCOPE_API_KEY"],
+    "ark_seedream_seedance": ["ARK_API_KEY"],
+    "kling": ["KLING_ACCESS_KEY", "KLING_SECRET_KEY"],
+    "gemini": ["GEMINI_API_KEY"],
+    "deepseek_env_provider": ["DEEPSEEK_API_KEY"],
+    "runninghub": ["RUNNINGHUB_API_KEY"]
+  },
+  "video": {
+    "runtime_task_id": "ce092b1a-8f41-448a-98db-9787cd9a04fb",
+    "persisted_job_id": "54c728ec-e3ac-575d-95e5-18ff819c7e77",
+    "status": "completed",
+    "path": "output/20260728_135256_1437/final.mp4",
+    "download_url": "http://127.0.0.1:8000/api/files/output/20260728_135256_1437/final.mp4",
+    "size_bytes": 114571,
+    "sha256": "5EF63E6AC41017FB3BF794264817B0031265555E2D1A87AD96ACE76DC51C9FB8",
+    "duration_seconds": 5.616,
+    "video_stream": {"codec": "h264", "width": 1080, "height": 1080, "fps": 15, "duration_seconds": 5.6},
+    "audio_stream": {"codec": "aac", "sample_rate": 24000, "channels": 1, "duration_seconds": 5.616},
+    "playable": true,
+    "has_video": true,
+    "has_audio": true,
+    "subtitles_visible": true
+  },
+  "ui": {
+    "url": "http://127.0.0.1:5273/#projects/1b07c106-eaf4-4ac2-8bbe-73769330f869",
+    "status": "passed",
+    "observed": ["已完成", "成片", "脚本已确认", "1 镜", "生成完成", "100%"],
+    "screenshot": "output/playwright/live-e2e-project-state.png",
+    "non_blocking_console_error": "favicon.ico HTTP 404"
+  },
+  "fixes": [
+    "搜索请求改为顺序执行并限制重试，避免 Dogpile 并发失败",
+    "证据抽取提高结构化输出预算、限制每批页面与声明数，并显式传播批量失败",
+    "增强厂商来源识别、候选排序、正文证据摘取与 F-16 跨语言相关性",
+    "前端端口从 Windows 保留范围内的 5173 调整到 5273",
+    "字幕渲染不再误隐藏通用 .footer 内容容器",
+    "已完成任务不再用陈旧内存结果覆盖数据库规范结果",
+    "修复后视频大小、资产索引、项目草稿、任务 API 与 UI 状态已同步"
+  ],
+  "targeted_tests": {
+    "full_repository_suite_rerun": false,
+    "jobs_api": "3 passed",
+    "other_related_regressions": "passed during the live-failure fixes; no full-suite rerun"
+  },
+  "estimated_chargeable_cost_usd": {"low": 0.05, "high": 0.30, "exact_available": false},
+  "rerun_20260728_165429": {
+    "reason": "Regression for research snapshot is not ready after root-cause fixes",
+    "project_id": "1b07c106-eaf4-4ac2-8bbe-73769330f869",
+    "research_snapshot_id": "9f694887-3222-4ae0-bea4-cd017d795c24",
+    "research_snapshot_status": "reference_ready / verified",
+    "snapshot_reused": true,
+    "fresh_video_job_id": "5fcf3798-c2c6-4a8f-8c10-291ed06b0283",
+    "status": "completed",
+    "path": "output/20260728_165429_1f15/final.mp4",
+    "download_url": "http://127.0.0.1:8000/api/files/output/20260728_165429_1f15/final.mp4",
+    "size_bytes": 115493,
+    "sha256": "8B066C2CBAEAABDC949C493A2AEC2E67CE9D705108140E1F3E21ABDBF095A03D",
+    "duration_seconds": 5.625,
+    "video_stream": {"codec": "h264", "width": 1080, "height": 1080, "fps": 16},
+    "audio_stream": {"codec": "aac", "duration_seconds": 5.616},
+    "generated_image_sha256": "FD6455FBDB06DD9939F9A0FF2C2F91C6C0AA04BF7EE0BDEA0690D85C03292415",
+    "tts_mp3_sha256": "BB41804F334D24E66508D845BEB64365EBB93333B8E9CF685CE8930BB3577359",
+    "subtitles_visible": true,
+    "ui_database_state_consistent": true,
+    "current_llm_probe": {
+      "provider": "DeepSeek",
+      "endpoint": "https://api.deepseek.com",
+      "model": "deepseek-v4-pro",
+      "result": "HTTP 402 Insufficient Balance",
+      "error_now_propagated_precisely": "research LLM has insufficient balance"
+    }
+  },
+  "correction_20260728_current_project_binding": {
+    "previous_video_artifacts_are_valid_files_but_not_current_user_output": true,
+    "f16_project_id": "1b07c106-eaf4-4ac2-8bbe-73769330f869",
+    "f16_current_status": "active",
+    "f16_current_stage": "script",
+    "f16_current_storyboard_scene_count": 0,
+    "f16_current_video": null,
+    "stale_video_hidden_in_ui": true,
+    "root_fix": "video jobs are bound to workflow_revision; only a matching revision may be displayed or mark a project completed",
+    "new_project_id": "0a9e4c2e-1983-4eb9-a433-98f66abac2b4",
+    "live_reference_script_job_id": "379b61a9-4d40-41b4-a37b-cb60bd056ffc",
+    "live_reference_script_status": "completed",
+    "live_reference_script_research_status": "reference_unavailable",
+    "live_reference_script_warning": "reference_extraction_empty",
+    "live_reference_script_queries": ["坦克 军事装备 工作原理", "坦克 官方 技术资料"],
+    "live_reference_script_candidate_source_count": 2,
+    "live_reference_script_narration_count": 5
+  }
+}

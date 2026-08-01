@@ -1,0 +1,37 @@
+use_default_settings: true
+
+search:
+  formats:
+    - html
+    - json
+
+server:
+  # The container overrides this placeholder from SEARXNG_SECRET.
+  secret_key: "ultrasecretkey"
+  bind_address: "0.0.0.0"
+  port: 8080
+  limiter: false
+
+ui:
+  static_use_hash: true
+
+# Research must remain useful without a desktop proxy. The application also
+# sends this explicit engine set on every query so SearXNG default changes do
+# not silently restore overseas-only dependencies.
+engines:
+  - name: baidu
+    disabled: false
+  - name: 360search
+    disabled: false
+  - name: sogou
+    disabled: false
+  - name: bing
+    disabled: true
+  - name: brave
+    disabled: true
+  - name: duckduckgo
+    disabled: true
+  - name: startpage
+    disabled: true
+  - name: google cse
+    disabled: true

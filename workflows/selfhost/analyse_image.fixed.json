@@ -1,0 +1,62 @@
+{
+  "5": {
+    "inputs": {
+      "image": "IMG_20250829_201936.jpg"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "$image.image"
+    }
+  },
+  "6": {
+    "inputs": {
+      "input": [
+        "7",
+        0
+      ],
+      "mode": "raw value"
+    },
+    "class_type": "DisplayAny",
+    "_meta": {
+      "title": "Display QwenVL Result"
+    }
+  },
+  "7": {
+    "inputs": {
+      "model_name": "Qwen3-VL-8B-Instruct",
+      "quantization": "None (FP16)",
+      "attention_mode": "auto",
+      "preset_prompt": "🖼️ Detailed Description",
+      "custom_prompt": "",
+      "max_tokens": 128,
+      "keep_model_loaded": true,
+      "seed": 3731918183,
+      "image": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "AILab_QwenVL",
+    "_meta": {
+      "title": "QwenVL"
+    }
+  },
+  "8": {
+    "inputs": {
+      "width": 1080,
+      "height": 1080,
+      "interpolation": "nearest",
+      "method": "keep proportion",
+      "condition": "downscale if bigger",
+      "multiple_of": 0,
+      "image": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "ImageResize+",
+    "_meta": {
+      "title": "Image Resize"
+    }
+  }
+}

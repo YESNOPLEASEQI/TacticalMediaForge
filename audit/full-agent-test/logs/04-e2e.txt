@@ -1,0 +1,4 @@
+npm run e2e -> exit 1.
+Scenario: verified storyboard research remains explicit, stale-aware, and traceable.
+Failure: role=button name=/联网核验/ not found within 8 seconds at research-workflow.spec.ts:129.
+No real backend or paid service was called; the test routes API calls to fixed mocks.

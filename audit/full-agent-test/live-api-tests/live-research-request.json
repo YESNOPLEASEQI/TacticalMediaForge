@@ -1,0 +1,12 @@
+{
+  "project_id": "1b07c106-eaf4-4ac2-8bbe-73769330f869",
+  "topic": "根据公开可靠资料，制作一条10秒左右的F-16战斗机基础科普视频，介绍其研制国家、首飞年代和典型外观特征。对无法确认的信息不要补写，不使用具体作战部署、攻击方法或未证实参数。",
+  "narrations": [
+    "F-16由洛克希德·马丁制造，首架生产型于1978年交付。"
+  ],
+  "asset_type": "image",
+  "mode": "verified",
+  "script_revision": 2,
+  "force_refresh": false,
+  "parent_job_id": null
+}

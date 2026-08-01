@@ -1,0 +1,22 @@
+FINAL VERIFICATION (2026-07-28 Asia/Shanghai)
+
+ruff check . -> PASS, 0 findings
+python -m compileall -q api military_video_gen tests -> PASS
+python -m pytest -q -> PASS, 315 passed, 12 Pydantic deprecation warnings, 23.61s
+npm test -- --run -> PASS, 18 files / 71 tests, 10.86s
+npm run typecheck -> PASS
+npm run build -> PASS, Vite 6.4.3, 2512 modules, one 805.10 kB chunk warning
+npm audit --audit-level=high -> PASS, 0 vulnerabilities
+npm run e2e -> PASS, Chromium 1/1
+uv lock --check -> PASS
+uv sync --frozen --extra dev -> PASS, 135 packages checked
+uv pip check --python .venv/Scripts/python.exe -> PASS
+uv build --out-dir audit/full-agent-test/logs/build-artifacts -> PASS, wheel and sdist built; binaries removed after evidence capture
+docker compose config --quiet -> PASS
+API import smoke -> PASS, 50 routes
+ffprobe bgm/default.mp3 -> PASS, mp3, 157.946750s, 2529519 bytes
+git diff --check -> PASS (Windows line-ending notices only)
+verified malicious-detail regression -> PASS; unsupported engine/loadout/insignia/base details discarded
+final cleanup -> PASS, exact manifest 700 operations / 67,420,232 bytes / 0 errors
+
+No public network or paid model/provider API was invoked by the audit scenarios.

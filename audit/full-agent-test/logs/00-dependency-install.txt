@@ -1,0 +1,5 @@
+uv lock --check -> exit 0; resolved 140 packages.
+uv sync --frozen --extra dev -> exit 0; checked 135 packages.
+uv pip check --python <WORKTREE>/.venv/Scripts/python.exe -> exit 0; compatible.
+npm ci --dry-run --ignore-scripts -> exit 0; up to date.
+npm ls --depth=0 -> exit 0; top-level tree complete.

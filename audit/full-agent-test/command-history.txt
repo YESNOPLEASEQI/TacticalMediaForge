@@ -1,0 +1,114 @@
+# 命令历史（私人绝对路径已替换为 <WORKTREE>）
+# 阶段 0
+git branch --show-current
+git rev-parse HEAD
+git status --short
+git worktree list --porcelain
+git log -1 --format=<metadata> --date=iso-strict
+git rev-parse --git-dir
+git rev-parse --git-common-dir
+git diff --stat
+git diff --name-status
+rg --files <配置、入口和项目文件过滤条件>
+Get-ChildItem <WORKTREE> -Recurse -File <文件数量、大小和目录统计>
+Get-CimInstance Win32_OperatingSystem
+python --version
+python -m pip --version
+uv --version
+node --version
+npm --version
+git --version
+ffmpeg -version
+ffprobe -version
+docker --version
+docker compose version
+
+# 阶段 1
+rg -n "^(class|def|async def) " api military_video_gen
+rg -n <生成、状态、媒体、FFmpeg、取消与重试关键词> military_video_gen api
+Get-Content api/app.py api/routers/*.py api/tasks/*.py
+Get-Content military_video_gen/service.py military_video_gen/pipelines/*.py
+Get-Content military_video_gen/research/*.py
+Get-Content military_video_gen/services/{video,media,tts_service,frame_processor,persistence,history_manager}.py
+Get-Content military_video_gen/database/{models,runtime_jobs}.py
+Get-Content frontend/src/features/video/* frontend/src/api/*
+
+# 阶段 2
+uv lock --check
+uv sync --frozen --extra dev
+uv pip check --python .venv/Scripts/python.exe
+uv run ruff check .
+uv run ruff check . --statistics
+uv run ruff format --check .
+uv run python -m compileall -q api military_video_gen tests scripts
+uv run pytest -q
+uv run python -m pytest -q
+uv build --out-dir audit/full-agent-test/logs/build-artifacts
+npm ci --dry-run --ignore-scripts
+npm ls --depth=0
+npm test -- --run
+npm run typecheck
+npm run build
+npm audit --audit-level=high
+npm run e2e
+docker compose config --quiet
+uv run python -c <API import smoke test>
+ffprobe -v error -show_entries format=duration,format_name,size -of json bgm/default.mp3
+rg -l <credential patterns> <tracked project scope>
+
+# 阶段 3（主 Agent 只读复核与子 Agent 汇总）
+git log -p -- military_video_gen/research/gate.py tests/api/test_video_research_gate.py
+rg -n <安全、状态、重试、路径、日志、事实与媒体关键词> api military_video_gen tests
+Get-Content <关键安全、工作流、事实控制与媒体文件>
+
+# Phase 4-6 (production fixes, deterministic audit, final verification)
+.venv/Scripts/python.exe -m pytest -q tests/audit/test_full_agent_scenarios.py
+.venv/Scripts/python.exe -m pytest -q tests/services/test_video_integrity.py
+.venv/Scripts/python.exe -m pytest -q tests/audit/test_hardening_regressions.py
+.venv/Scripts/ruff.exe check --fix .
+.venv/Scripts/ruff.exe check .
+.venv/Scripts/python.exe -m compileall -q api military_video_gen tests
+.venv/Scripts/python.exe -m pytest -q
+npm test -- --run
+npm run typecheck
+npm run build
+npm audit --audit-level=high
+npm run e2e
+uv lock --check
+uv sync --frozen --extra dev
+uv pip check --python .venv/Scripts/python.exe
+uv build --out-dir audit/full-agent-test/logs/build-artifacts
+docker compose config --quiet
+.venv/Scripts/python.exe -c <API route-count import smoke>
+ffprobe -v error -show_entries format=duration,format_name,size -of json bgm/default.mp3
+rg -n <cleanup reference patterns> output data audit
+Get-CimInstance Win32_Process <project process filter>
+Get-FileHash <cleanup candidates; combined inventory hashes only recorded>
+System.IO.File/Delete and Directory/Delete <prevalidated manifest targets>
+git diff --check
+git diff <secret-signature count only>
+
+# 独立复审修复与最终验收
+rg -n <安全门、来源评分、provenance、公开路径与媒体校验关键词> api military_video_gen tests
+Get-Content <独立复审相关生产代码、测试和报告>
+uv run pytest -q <Crawl4AI、路径、媒体、安全、来源、verified gate 定向节点>
+uv run ruff check <独立复审修改文件>
+uv run ruff check --fix <仅导入排序文件>
+uv lock --check
+uv pip check --python .venv/Scripts/python.exe
+uv run python -m compileall -q api military_video_gen tests scripts
+uv run ruff check .
+uv run pytest -q
+npm test -- --run
+npm run typecheck
+npm run build
+npm audit --audit-level=high
+npm run e2e
+uv build --out-dir audit/full-agent-test/logs/build-artifacts
+uv run python -c <API 50 路由导入冒烟>
+docker compose config --quiet
+ffprobe -v error -show_entries <stream/format contract> -of json bgm/default.mp3
+.venv/Scripts/python.exe -B scripts/audit_cleanup.py manifest audit/full-agent-test/cleanup-manifest-final.json final-post-review
+.venv/Scripts/python.exe -B scripts/audit_cleanup.py delete audit/full-agent-test/cleanup-manifest-final.json final-post-review
+git diff --check 8c13e253a1098cfa14b0c745bfd11126636ebe13
+git status --short

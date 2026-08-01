@@ -1,0 +1,31 @@
+{
+  "frozen_before_production_changes": true,
+  "generated_at": "2026-07-27T18:31:00+08:00",
+  "scenario_result": {"total": 54, "failed": 51, "passed": 3, "teardown_errors": 1},
+  "bugs": [
+    {"id": "SEC-001", "severity": "P0", "classification": "CONFIRMED", "title": "Task ID path traversal reaches recursive deletion", "scenarios": ["S01-S06"]},
+    {"id": "SAFE-001", "severity": "P0", "classification": "CONFIRMED", "title": "No fail-closed actionable military harm gate", "scenarios": ["S12-S19"]},
+    {"id": "SEC-002", "severity": "P0", "classification": "CONFIRMED", "title": "Service debug logs may expose API keys", "scenarios": []},
+    {"id": "SEC-003", "severity": "P1", "classification": "CONFIRMED", "title": "HTML template injection and unrestricted renderer resources", "scenarios": []},
+    {"id": "FACT-001", "severity": "P1", "classification": "CONFIRMED", "title": "Verified research gate is a no-op", "scenarios": ["S53"]},
+    {"id": "FACT-002", "severity": "P1", "classification": "CONFIRMED", "title": "Claim and visual-fact confidence thresholds are ignored", "scenarios": ["S35-S39"]},
+    {"id": "TASK-001", "severity": "P1", "classification": "CONFIRMED", "title": "Concurrency setting and total deadline are unenforced", "scenarios": ["S41-S42"]},
+    {"id": "TASK-002", "severity": "P1", "classification": "CONFIRMED", "title": "None task results are marked completed", "scenarios": ["S40"]},
+    {"id": "TASK-003", "severity": "P1", "classification": "CONFIRMED", "title": "Non-idempotent paid video submission is retried", "scenarios": []},
+    {"id": "TASK-004", "severity": "P1", "classification": "CONFIRMED", "title": "Asset pipeline mutable state is shared across concurrent tasks", "scenarios": ["S44"]},
+    {"id": "MEDIA-001", "severity": "P1", "classification": "CONFIRMED", "title": "Single scene silently drops BGM", "scenarios": []},
+    {"id": "MEDIA-002", "severity": "P1", "classification": "CONFIRMED", "title": "Missing final media integrity gate", "scenarios": ["S45-S49"]},
+    {"id": "MEDIA-003", "severity": "P1", "classification": "CONFIRMED", "title": "Downloaded error pages can enter media pipeline", "scenarios": ["S50"]},
+    {"id": "SCHEMA-001", "severity": "P1", "classification": "CONFIRMED", "title": "Ambiguous and inconsistent generation inputs accepted", "scenarios": ["S25-S34"]},
+    {"id": "DB-001", "severity": "P1", "classification": "CONFIRMED", "title": "Terminal database sync errors are swallowed", "scenarios": []},
+    {"id": "STAGE-001", "severity": "P1", "classification": "CONFIRMED", "title": "Older jobs can regress project stage", "scenarios": []},
+    {"id": "MEDIA-004", "severity": "P2", "classification": "CONFIRMED", "title": "Result duration can differ from final media", "scenarios": []},
+    {"id": "MEDIA-005", "severity": "P2", "classification": "CONFIRMED", "title": "Video segments are not normalized before stream-copy concat", "scenarios": []},
+    {"id": "MEDIA-006", "severity": "P2", "classification": "CONFIRMED", "title": "Failure paths leak large media intermediates", "scenarios": []},
+    {"id": "MEDIA-007", "severity": "P2", "classification": "HIGHLY_LIKELY", "title": "Proportional subtitles can drift from speech", "scenarios": []},
+    {"id": "PLAY-001", "severity": "P2", "classification": "CONFIRMED", "title": "Shared Playwright browser has initialization and loop-state races", "scenarios": []},
+    {"id": "DEP-001", "severity": "P2", "classification": "CONFIRMED", "title": "High severity PostCSS advisory", "scenarios": []},
+    {"id": "E2E-001", "severity": "P2", "classification": "CONFIRMED", "title": "E2E selectors assert obsolete research wording", "scenarios": []},
+    {"id": "QUALITY-001", "severity": "P3", "classification": "CONFIRMED", "title": "Ruff baseline has 122 findings and broad formatting drift", "scenarios": []}
+  ]
+}

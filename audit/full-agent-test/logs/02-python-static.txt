@@ -1,0 +1,4 @@
+uv run python -m compileall -q api military_video_gen tests scripts -> exit 0.
+uv run ruff check . -> exit 1; 122 findings (104 auto-fixable).
+Statistics: I001=61, F401=25, F541=16, E402=12, F841=5, F811=2, E722=1.
+uv run ruff format --check . -> exit 1; 117 files would be reformatted, 54 already formatted.

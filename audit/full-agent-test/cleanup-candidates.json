@@ -1,0 +1,21 @@
+{
+  "generated_at": "2026-07-27T18:20:00+08:00",
+  "policy": "Only SAFE_DELETE and DELETE_AFTER_TEST may be removed automatically; USER_ASSET and UNCERTAIN are protected.",
+  "candidates": [
+    {"path": "**/__pycache__/", "class": "SAFE_DELETE", "tracked": false, "regenerable": true, "risk": "low", "reason": "Python bytecode cache"},
+    {"path": "**/*.pyc", "class": "SAFE_DELETE", "tracked": false, "regenerable": true, "risk": "low", "reason": "Python bytecode"},
+    {"path": ".pytest_cache/", "class": "SAFE_DELETE", "tracked": false, "regenerable": true, "risk": "low", "reason": "pytest state cache"},
+    {"path": ".ruff_cache/", "class": "SAFE_DELETE", "tracked": false, "regenerable": true, "risk": "low", "reason": "Ruff cache"},
+    {"path": "frontend/dist/", "class": "DELETE_AFTER_TEST", "tracked": false, "regenerable": true, "risk": "low", "reason": "frontend build output created during audit"},
+    {"path": "frontend/test-results/", "class": "DELETE_AFTER_TEST", "tracked": false, "regenerable": true, "risk": "low", "reason": "Playwright result created during audit"},
+    {"path": "frontend/tsconfig.tsbuildinfo", "class": "DELETE_AFTER_TEST", "tracked": false, "regenerable": true, "risk": "low", "reason": "TypeScript incremental cache"},
+    {"path": "audit/full-agent-test/logs/build-artifacts/*", "class": "DELETE_AFTER_TEST", "tracked": false, "regenerable": true, "risk": "low", "reason": "wheel/sdist created during audit; textual evidence retained"},
+    {"path": "temp/padded_*_video.mp4_overlay.mp4", "class": "DELETE_AFTER_TEST", "tracked": false, "regenerable": true, "risk": "medium", "reason": "old media intermediates; delete only after reference check"},
+    {"path": "temp/trimmed_*_video.mp4_overlay.mp4", "class": "DELETE_AFTER_TEST", "tracked": false, "regenerable": true, "risk": "medium", "reason": "old media intermediates; delete only after reference check"},
+    {"path": ".playwright-cli/**", "class": "UNCERTAIN", "tracked": false, "regenerable": "unknown", "risk": "medium", "reason": "predates audit and may be user diagnostic evidence"},
+    {"path": "temp/latest-video-diagnostic.jpg", "class": "UNCERTAIN", "tracked": false, "regenerable": "unknown", "risk": "medium", "reason": "predates audit diagnostic"},
+    {"path": "output/**", "class": "USER_ASSET", "tracked": false, "regenerable": false, "risk": "high", "reason": "historical generated videos, metadata, storyboards and indexes"},
+    {"path": "data/**", "class": "USER_ASSET", "tracked": false, "regenerable": false, "risk": "high", "reason": "databases, runtime state and logs"},
+    {"path": ".env", "class": "USER_ASSET", "tracked": false, "regenerable": false, "risk": "high", "reason": "local credentials/configuration; content was not read"}
+  ]
+}

@@ -1,0 +1,74 @@
+REAL LIVE-E2E GENERATED ASSETS
+Run date: 2026-07-28 Asia/Shanghai
+IMPORTANT: The following MP4s are test artifacts only. They are not the current output of the user's later seven-scene vertical F-16 draft and are no longer displayed as that project's current video.
+
+C:\Users\www30\Desktop\MilitaryVideoGenAgent\MilitaryVideoGenAgent\output\20260728_135256_1437\final.mp4
+  bytes=114571
+  sha256=5EF63E6AC41017FB3BF794264817B0031265555E2D1A87AD96ACE76DC51C9FB8
+
+FRESH VERIFIED RERUN (2026-07-28 16:54:29)
+
+C:\Users\www30\Desktop\MilitaryVideoGenAgent\MilitaryVideoGenAgent\output\20260728_165429_1f15\final.mp4
+  bytes=115493
+  sha256=8B066C2CBAEAABDC949C493A2AEC2E67CE9D705108140E1F3E21ABDBF095A03D
+  duration_seconds=5.625
+  streams=h264 1080x1080 16fps; aac audio
+
+C:\Users\www30\Desktop\MilitaryVideoGenAgent\MilitaryVideoGenAgent\output\20260728_165429_1f15\frames\01_audio.mp3
+  bytes=33696
+  sha256=BB41804F334D24E66508D845BEB64365EBB93333B8E9CF685CE8930BB3577359
+
+C:\Users\www30\Desktop\MilitaryVideoGenAgent\MilitaryVideoGenAgent\output\20260728_165429_1f15\frames\01_image.png
+  bytes=853041
+  sha256=FD6455FBDB06DD9939F9A0FF2C2F91C6C0AA04BF7EE0BDEA0690D85C03292415
+
+C:\Users\www30\Desktop\MilitaryVideoGenAgent\MilitaryVideoGenAgent\output\20260728_165429_1f15\frames\01_composed_01.png
+  bytes=337288
+
+C:\Users\www30\Desktop\MilitaryVideoGenAgent\MilitaryVideoGenAgent\output\20260728_165429_1f15\frames\01_composed_02.png
+  bytes=337559
+
+fresh_video_job_id=5fcf3798-c2c6-4a8f-8c10-291ed06b0283
+research_snapshot_id=9f694887-3222-4ae0-bea4-cd017d795c24
+download_url=http://127.0.0.1:8000/api/files/output/20260728_165429_1f15/final.mp4
+download_status=200
+download_bytes=115493
+download_sha256=8B066C2CBAEAABDC949C493A2AEC2E67CE9D705108140E1F3E21ABDBF095A03D
+
+C:\Users\www30\Desktop\MilitaryVideoGenAgent\MilitaryVideoGenAgent\output\20260728_135256_1437\metadata.json
+  bytes=4836
+  sha256=12A34290071188A0C852213134BCB4FAD09A9B42AE1F4E4519CBD0BF2E2F279B
+
+C:\Users\www30\Desktop\MilitaryVideoGenAgent\MilitaryVideoGenAgent\output\20260728_135256_1437\storyboard.json
+  bytes=4902
+  sha256=4D3752867F912D9C318BBA5264F83846B61CEFCE7069935BD085F25098C9B083
+
+C:\Users\www30\Desktop\MilitaryVideoGenAgent\MilitaryVideoGenAgent\output\20260728_135256_1437\frames\01_audio.mp3
+  bytes=33696
+  sha256=3C61CD22F3DD6092ED76090135810B6AAD172F3213697753F03CF93AF8C0F174
+
+C:\Users\www30\Desktop\MilitaryVideoGenAgent\MilitaryVideoGenAgent\output\20260728_135256_1437\frames\01_image.png
+  bytes=853041
+  sha256=FD6455FBDB06DD9939F9A0FF2C2F91C6C0AA04BF7EE0BDEA0690D85C03292415
+
+C:\Users\www30\Desktop\MilitaryVideoGenAgent\MilitaryVideoGenAgent\output\20260728_135256_1437\frames\01_composed_01.png
+  bytes=337288
+  sha256=B323FA2315D039420F853DECA11204B9409F210BC016CA226A520894E6BB5F11
+
+C:\Users\www30\Desktop\MilitaryVideoGenAgent\MilitaryVideoGenAgent\output\20260728_135256_1437\frames\01_composed_02.png
+  bytes=337559
+  sha256=7B48B950DBA7C423366308F6A4370A5283E8D239511BDFFB4B22489F29DB8EEF
+
+C:\Users\www30\Desktop\MilitaryVideoGenAgent\MilitaryVideoGenAgent\output\20260728_135256_1437\frames\01_segment.mp4
+  bytes=114571
+  sha256=5EF63E6AC41017FB3BF794264817B0031265555E2D1A87AD96ACE76DC51C9FB8
+
+C:\Users\www30\Desktop\MilitaryVideoGenAgent\MilitaryVideoGenAgent\output\playwright\live-e2e-project-state.png
+  bytes=198559
+  sha256=1DFE3680FDBBB4B70DAFBCF2B61E7982653CA69FC171626DDC36AA3E7C46AFBD
+
+HTTP download verification:
+  url=http://127.0.0.1:8000/api/files/output/20260728_135256_1437/final.mp4
+  status=200
+  bytes=114571
+  sha256=5EF63E6AC41017FB3BF794264817B0031265555E2D1A87AD96ACE76DC51C9FB8
