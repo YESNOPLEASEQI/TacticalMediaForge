@@ -9,7 +9,7 @@ import asyncio
 import random
 
 import edge_tts as edge_tts_sdk
-from aiohttp import ClientResponseError, WSServerHandshakeError
+from aiohttp import ClientError, ClientResponseError, WSServerHandshakeError
 from edge_tts.exceptions import NoAudioReceived
 from loguru import logger
 
@@ -19,9 +19,12 @@ from military_video_gen.utils.safety import redact_path_for_log, sanitize_error_
 _USE_CERTIFI_SSL = True
 
 # Retry configuration for Edge TTS (to handle 401 errors and NoAudioReceived)
-_RETRY_COUNT = 5           # Default retry count
+_RETRY_COUNT = 2           # Default retry count (three bounded attempts total)
 _RETRY_BASE_DELAY = 1.0     # Base retry delay in seconds (for exponential backoff)
 _MAX_RETRY_DELAY = 10.0     # Maximum retry delay in seconds
+_CONNECT_TIMEOUT = 10       # Edge TTS WebSocket connect timeout in seconds
+_RECEIVE_TIMEOUT = 30       # Edge TTS WebSocket read timeout in seconds
+_ATTEMPT_TIMEOUT = 45       # Hard upper bound for one synthesis attempt
 
 # Rate limiting configuration
 _REQUEST_DELAY = 0.5        # Minimum delay before each request (seconds)
@@ -139,13 +142,16 @@ async def edge_tts(
                     rate=rate,
                     volume=volume,
                     pitch=pitch,
+                    connect_timeout=_CONNECT_TIMEOUT,
+                    receive_timeout=_RECEIVE_TIMEOUT,
                 )
                 
                 # Collect audio chunks
                 audio_chunks = []
-                async for chunk in communicate.stream():
-                    if chunk["type"] == "audio":
-                        audio_chunks.append(chunk["data"])
+                async with asyncio.timeout(_ATTEMPT_TIMEOUT):
+                    async for chunk in communicate.stream():
+                        if chunk["type"] == "audio":
+                            audio_chunks.append(chunk["data"])
                 
                 audio_data = b"".join(audio_chunks)
                 
@@ -162,7 +168,7 @@ async def edge_tts(
                 
                 return audio_data
             
-            except (WSServerHandshakeError, ClientResponseError) as e:
+            except (asyncio.TimeoutError, ClientError) as e:
                 # Network/authentication errors - retry
                 last_error = e
                 error_code = getattr(e, 'status', 'unknown')
