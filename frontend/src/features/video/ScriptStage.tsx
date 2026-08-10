@@ -4,11 +4,9 @@ import { SectionPanel } from "@/components/operations/OperationsShell";
 import { SpotlightCard } from "@/components/react-bits/SpotlightCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { GenerationModeSelector } from "@/features/video/ResearchModeSelector";
 import { researchWarningLabel } from "@/features/video/researchWarnings";
-import type { BGMInfo, TemplateInfo } from "@/types/api";
 import type { ResearchStatus } from "@/types/api";
 import type { VideoWorkflowConfig } from "@/features/video/workflow";
 import { gsap, useGSAP } from "@/lib/gsap";
@@ -28,8 +26,6 @@ interface ScriptStageProps {
   scriptMode: "reference" | "quick";
   researchCapabilityEnabled: boolean;
   config: VideoWorkflowConfig;
-  templates: TemplateInfo[];
-  bgmFiles: BGMInfo[];
   disabled: boolean;
   isGenerating: boolean;
   generationError?: string;
@@ -62,12 +58,12 @@ export function ScriptStage(props: ScriptStageProps) {
     if (feedback.status !== "completed") return null;
     if (feedback.mode === "quick") return "脚本生成成功（快速模式）";
     if (feedback.researchStatus === "reference_ready") {
-      return `脚本生成成功，已使用联网参考（${feedback.sources.length} 个来源）`;
+      return `脚本生成成功，已使用联网事实增强（${feedback.sources.length} 个来源）`;
     }
     if (feedback.researchStatus === "partial_reference") {
       return `脚本生成成功，已使用部分可用参考（${feedback.sources.length} 个来源）`;
     }
-    return "脚本生成成功；联网参考不可用，已自动降级为普通模式";
+    return "脚本生成成功；联网事实增强不可用，已自动降级为快速模式";
   })();
   const { contextSafe } = useGSAP({ scope: stageRef });
 
@@ -121,13 +117,16 @@ export function ScriptStage(props: ScriptStageProps) {
           <div className="space-y-2">
             <label className="control-label" htmlFor="workflow-source">选题或原始文案</label>
             <Textarea id="workflow-source" disabled={props.disabled} value={props.sourceText} onChange={(event) => props.onSourceTextChange(event.target.value)} placeholder="例如：解释相控阵雷达如何同时追踪多个目标" />
-            <GenerationModeSelector
-              ariaLabel="脚本生成模式"
-              capabilityEnabled={props.researchCapabilityEnabled}
-              disabled={props.disabled || props.isGenerating}
-              mode={props.scriptMode}
-              onChange={props.onScriptModeChange}
-            />
+            <div className="space-y-2">
+              <p className="control-label">内容依据</p>
+              <GenerationModeSelector
+                ariaLabel="内容依据"
+                capabilityEnabled={props.researchCapabilityEnabled}
+                disabled={props.disabled || props.isGenerating}
+                mode={props.scriptMode}
+                onChange={props.onScriptModeChange}
+              />
+            </div>
             <Button disabled={props.disabled || !props.sourceText.trim()} isLoading={props.isGenerating} onClick={props.onGenerate} type="button" variant="secondary">
               <Sparkles className="h-4 w-4" />生成脚本段落
             </Button>
@@ -181,23 +180,6 @@ export function ScriptStage(props: ScriptStageProps) {
                 <Button aria-label={`删除脚本段落 ${index + 1}`} disabled={props.disabled || props.narrations.length === 1} onClick={() => removeParagraph(index)} size="icon" type="button" variant="ghost"><Trash2 className="h-4 w-4" /></Button>
               </div>
             ))}
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="space-y-2">
-              <label className="control-label">画面模板</label>
-              <Select disabled={props.disabled || props.templates.length === 0} value={props.config.frameTemplate} onValueChange={(frameTemplate) => props.onConfigChange({ ...props.config, frameTemplate })}>
-                <SelectTrigger><SelectValue placeholder="选择画面模板" /></SelectTrigger>
-                <SelectContent>{props.templates.map((template) => <SelectItem key={template.key} value={template.key}>{template.size} / {template.display_name || template.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="control-label">背景音乐</label>
-              <Select disabled={props.disabled || props.bgmFiles.length === 0} value={props.config.bgmPath || "none"} onValueChange={(bgmPath) => props.onConfigChange({ ...props.config, bgmEnabled: bgmPath !== "none", bgmPath: bgmPath === "none" ? "" : bgmPath })}>
-                <SelectTrigger><SelectValue placeholder="不使用背景音乐" /></SelectTrigger>
-                <SelectContent><SelectItem value="none">不使用背景音乐</SelectItem>{props.bgmFiles.map((bgm) => <SelectItem key={bgm.path} value={bgm.path}>{bgm.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
           </div>
 
           <Button className="w-full" disabled={props.disabled || !hasScript} onClick={props.onConfirm} type="button">

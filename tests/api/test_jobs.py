@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from api.app import app
 from api.routers.jobs import _read
-from api.tasks import Task, TaskStatus, TaskType, task_manager
+from api.tasks import Task, TaskProgress, TaskStatus, TaskType, task_manager
 from military_video_gen.database.base import Base
 from military_video_gen.database.models import GenerationJob, Project
 from military_video_gen.database.session import create_engine, get_db_session
@@ -99,9 +99,13 @@ def test_active_runtime_task_still_overlays_database_progress(monkeypatch):
         task_type=TaskType.VIDEO_GENERATION,
         status=TaskStatus.RUNNING,
         result={"partial": True},
+        progress=TaskProgress(current=3500, total=10000, percentage=35, message="生成素材", stage="media", current_scene=2, total_scenes=5),
     )
     monkeypatch.setattr(task_manager, "get_task", lambda _task_id: active_task)
 
     result = _read(job)
     assert result.status == "running"
     assert result.result_json == {"partial": True}
+    assert result.progress_current_scene == 2
+    assert result.progress_total_scenes == 5
+    assert result.progress_stage == "media"

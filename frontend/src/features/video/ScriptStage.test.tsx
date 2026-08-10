@@ -17,7 +17,6 @@ function Harness({
   const [scriptMode, setScriptMode] = React.useState<"reference" | "quick">("reference");
   return (
     <ScriptStage
-      bgmFiles={[]}
       config={createEmptyWorkflow().config}
       disabled={false}
       generationError={generationError}
@@ -34,7 +33,6 @@ function Harness({
       onSourceTextChange={vi.fn()}
       onTitleChange={vi.fn()}
       sourceText="雷达"
-      templates={[]}
       title="测试"
     />
   );
@@ -43,10 +41,17 @@ function Harness({
 describe("ScriptStage motion", () => {
   it("allows switching the script generation mode", async () => {
     render(<Harness />);
-    const modeGroup = screen.getByLabelText("脚本生成模式");
+    const modeGroup = screen.getByLabelText("内容依据");
     const quickButton = within(modeGroup).getByRole("button", { name: "快速生成" });
     fireEvent.click(quickButton);
     expect(quickButton).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("keeps rendering output settings out of the script stage", () => {
+    render(<Harness />);
+    expect(screen.queryByText("输出设置")).not.toBeInTheDocument();
+    expect(screen.queryByText("画面模板")).not.toBeInTheDocument();
+    expect(screen.queryByText("背景音乐")).not.toBeInTheDocument();
   });
 
   it("keeps the following paragraph visible after deleting a middle item", async () => {
@@ -64,7 +69,7 @@ describe("ScriptStage motion", () => {
 
   it("disables online references when the capability is unavailable", () => {
     render(<Harness capabilityEnabled={false} />);
-    expect(screen.getByRole("button", { name: "联网参考" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "联网事实增强" })).toBeDisabled();
   });
 
   it("shows a persistent script generation error", () => {
@@ -88,7 +93,7 @@ describe("ScriptStage motion", () => {
     }} />);
 
     expect(screen.getByRole("status")).toHaveTextContent("脚本生成成功");
-    expect(screen.getByRole("status")).toHaveTextContent("联网参考不可用");
+    expect(screen.getByRole("status")).toHaveTextContent("联网事实增强不可用");
     fireEvent.click(screen.getByText("查看参考来源与提示"));
     expect(screen.getByText("联网搜索暂不可用")).toBeInTheDocument();
   });
@@ -102,7 +107,7 @@ describe("ScriptStage motion", () => {
       warnings: [],
     }} />);
 
-    expect(screen.getByRole("status")).toHaveTextContent("已使用联网参考（1 个来源）");
+    expect(screen.getByRole("status")).toHaveTextContent("已使用联网事实增强（1 个来源）");
     fireEvent.click(screen.getByText("查看参考来源与提示"));
     expect(screen.getByRole("link", { name: "官方资料" })).toHaveAttribute("href", "https://example.test/source");
   });

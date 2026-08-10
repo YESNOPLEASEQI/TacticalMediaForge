@@ -1,7 +1,6 @@
 import * as React from "react";
-import { ChevronDown, ChevronUp, CircleAlert, Clock3, Download, FileVideo, Loader2, Square, Video } from "lucide-react";
+import { ChevronDown, ChevronUp, CircleAlert, Clock3, Download, ExternalLink, FileVideo, Loader2, Pencil, RefreshCw, Square, Video } from "lucide-react";
 import { SectionPanel } from "@/components/operations/OperationsShell";
-import { AnimatedList } from "@/components/react-bits/AnimatedList";
 import { SpotlightCard } from "@/components/react-bits/SpotlightCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,9 +10,13 @@ import { formatBytes, formatDuration } from "@/lib/utils";
 import type { Task } from "@/types/api";
 import { VideoPreview } from "@/features/video/VideoPreview";
 
-interface GenerationStatusPanelProps { isCancelling: boolean; onCancel: () => void; task?: Task; }
-
-const stages = ["等待处理", "进行中", "已完成"];
+interface GenerationStatusPanelProps {
+  isCancelling: boolean;
+  onCancel: () => void;
+  onEditStoryboard?: () => void;
+  onGenerateNewVersion?: () => void;
+  task?: Task;
+}
 
 function statusLabel(status?: Task["status"]) {
   if (status === "pending") return "等待处理";
@@ -37,13 +40,6 @@ function progressValue(task?: Task) {
   return task?.progress?.percentage ?? 0;
 }
 
-function stageIndex(task?: Task) {
-  if (task?.status === "completed") return 2;
-  if (task?.status === "pending") return 0;
-  if (task?.status === "running") return 1;
-  return task ? 1 : 0;
-}
-
 function requestDetail(task?: Task) {
   const params = task?.request_params;
   if (!params) return [];
@@ -52,7 +48,7 @@ function requestDetail(task?: Task) {
   return [provider, workflow].filter((value): value is string => Boolean(value));
 }
 
-export function GenerationStatusPanel({ isCancelling, onCancel, task }: GenerationStatusPanelProps) {
+export function GenerationStatusPanel({ isCancelling, onCancel, onEditStoryboard, onGenerateNewVersion, task }: GenerationStatusPanelProps) {
   const [showTechnical, setShowTechnical] = React.useState(false);
   const panelRef = React.useRef<HTMLDivElement>(null);
   const previousProgress = React.useRef<number | undefined>(undefined);
@@ -62,6 +58,8 @@ export function GenerationStatusPanel({ isCancelling, onCancel, task }: Generati
   const message = task?.progress?.message || statusLabel(task?.status);
   const generationMethods = requestDetail(task);
   const progress = progressValue(task);
+  const currentScene = task?.progress?.current_scene;
+  const totalScenes = task?.progress?.total_scenes;
 
   useGSAP(() => {
     const media = gsap.matchMedia();
@@ -105,10 +103,10 @@ export function GenerationStatusPanel({ isCancelling, onCancel, task }: Generati
               {canCancel ? <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden="true" /> : <Clock3 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />}
               <span>{message}</span>
             </div>
+            {currentScene && totalScenes ? <p className="mb-3 font-data text-xs text-primary">已进入 SHOT {String(currentScene).padStart(2, "0")} / {String(totalScenes).padStart(2, "0")}</p> : null}
             <div aria-valuemax={100} aria-valuemin={0} aria-valuenow={progress} className="generation-progress" role="progressbar"><span data-motion="generation-progress-bar"><i aria-hidden="true" /></span></div>
+            {canCancel ? <p className="mt-3 text-xs text-muted-foreground">任务会在后台继续运行，可放心返回项目中心；重新进入项目即可查看最新进度。</p> : null}
           </div>
-
-          <div><p className="mb-2 text-xs text-muted-foreground">处理阶段</p><AnimatedList activeIndex={stageIndex(task)} items={stages} /></div>
 
           {task?.task_id || generationMethods.length ? (
             <div className="border-t border-border/60 pt-2">
@@ -135,7 +133,13 @@ export function GenerationStatusPanel({ isCancelling, onCancel, task }: Generati
                   <div className="ops-panel-muted p-3"><div className="flex items-center gap-2 text-xs text-muted-foreground"><Video className="h-4 w-4" aria-hidden="true" />时长</div><p className="mt-1 text-sm font-medium">{formatDuration(result.duration)}</p></div>
                   <div className="ops-panel-muted p-3"><div className="flex items-center gap-2 text-xs text-muted-foreground"><FileVideo className="h-4 w-4" aria-hidden="true" />文件大小</div><p className="mt-1 text-sm font-medium">{formatBytes(result.file_size)}</p></div>
                 </div>
-                <div data-motion="result-actions"><Button asChild className="w-full" variant="secondary"><a href={result.video_url} rel="noreferrer" target="_blank"><Download className="h-4 w-4" aria-hidden="true" />打开成片</a></Button></div>
+                <div className="grid gap-2 sm:grid-cols-2" data-motion="result-actions">
+                  <Button asChild variant="secondary"><a href={result.video_url} rel="noreferrer" target="_blank"><ExternalLink className="h-4 w-4" aria-hidden="true" />打开成片</a></Button>
+                  <Button asChild variant="secondary"><a download href={result.video_url}><Download className="h-4 w-4" aria-hidden="true" />下载成片</a></Button>
+                  {onEditStoryboard ? <Button onClick={onEditStoryboard} type="button" variant="ghost"><Pencil className="h-4 w-4" />编辑分镜</Button> : null}
+                  {onGenerateNewVersion ? <Button onClick={onGenerateNewVersion} type="button"><RefreshCw className="h-4 w-4" />生成新版本</Button> : null}
+                </div>
+                <p className="text-xs text-muted-foreground">生成新版本不会覆盖当前成片，旧结果会保留在项目记录中。</p>
               </div>
             ) : null}
         </div>

@@ -417,6 +417,22 @@ export function canGenerateVideo(draft: VideoWorkflowDraft) {
   );
 }
 
+export function videoGenerationBlockReason(draft: VideoWorkflowDraft) {
+  if (draft.storyboard.length === 0) return "请先返回分镜阶段并生成至少一个分镜。";
+  if (hasDuplicateStoryboardPrompts(draft.storyboard)) return "部分分镜使用了相同的英文生成提示词，请分别修改后再生成。";
+  const missingNarration = draft.storyboard.findIndex((scene) => !scene.narration.trim());
+  if (missingNarration >= 0) return `SHOT ${String(missingNarration + 1).padStart(2, "0")} 缺少解说词。`;
+  const missingPrompt = draft.storyboard.findIndex((scene) => !scene.mediaPrompt.trim());
+  if (missingPrompt >= 0) return `SHOT ${String(missingPrompt + 1).padStart(2, "0")} 缺少英文生成提示词。`;
+  const chinesePrompt = draft.storyboard.findIndex((scene) => containsCjk(scene.mediaPrompt));
+  if (chinesePrompt >= 0) return `SHOT ${String(chinesePrompt + 1).padStart(2, "0")} 的生成提示词包含中文，请改为英文。`;
+  const unanchoredPrompt = draft.storyboard.findIndex((scene) => isUnanchoredStoryboardPrompt(scene.mediaPrompt));
+  if (unanchoredPrompt >= 0) return `SHOT ${String(unanchoredPrompt + 1).padStart(2, "0")} 的提示词没有写明具体主体。`;
+  const tooManyReferences = draft.storyboard.findIndex((scene) => (scene.referenceAssetIds?.length ?? 0) > 4);
+  if (tooManyReferences >= 0) return `SHOT ${String(tooManyReferences + 1).padStart(2, "0")} 绑定了超过 4 张装备视觉参考。`;
+  return undefined;
+}
+
 export function canUseVerifiedGeneration(draft: VideoWorkflowDraft) {
   const activeResearchId = draft.research.activeJobId;
   return (

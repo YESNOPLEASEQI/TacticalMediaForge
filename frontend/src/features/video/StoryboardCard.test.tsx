@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { StoryboardCard } from "@/features/video/StoryboardCard";
 import type { EditableStoryboardScene } from "@/features/video/workflow";
+import type { ReferenceAsset } from "@/types/api";
 
 const scene: EditableStoryboardScene = { id: "scene-0", index: 0, narration: "解说内容", visualDescription: "雷达阵列画面", mediaPrompt: "cinematic radar", estimatedDuration: 6, assetType: "video", status: "draft", referenceAssetIds: [] };
 
@@ -63,5 +64,23 @@ describe("storyboard card", () => {
 
     expect(screen.queryByText("低置信核验")).not.toBeInTheDocument();
     expect(screen.queryByText("已验证通用")).not.toBeInTheDocument();
+  });
+
+  it("states the four-reference limit on an H3 shot", () => {
+    const assets: ReferenceAsset[] = Array.from({ length: 4 }, (_, index) => ({
+      id: `asset-${index}`,
+      project_id: "project-1",
+      filename: `reference-${index}.jpg`,
+      mime_type: "image/jpeg",
+      size_bytes: 1024,
+      width: 640,
+      height: 360,
+      metadata_json: {},
+      url: `/reference-${index}.jpg`,
+      created_at: "2026-08-10T00:00:00Z",
+    }));
+    render(<StoryboardCard referenceAssets={assets} scene={{ ...scene, referenceAssetIds: assets.map((asset) => asset.id) }} showReferences />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("已达到每镜 4 张参考图上限");
   });
 });

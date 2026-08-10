@@ -330,9 +330,20 @@ export function ProjectCenterPage({
                 const jobs = jobsForProject(project.id);
                 const latestJob = jobs[0];
                 if (!latestJob) return project;
+                const latestVideoJob = jobs.find((job) => job.job_type === "video_generation");
                 const storyboardJob = jobs.find((job) => job.job_type === "storyboard_generation" && job.status === "completed");
                 const prompts = storyboardJob?.result_json.image_prompts;
-                return { ...project, storyboardCount: Math.max(project.storyboardCount, Array.isArray(prompts) ? prompts.length : 0), latestJobId: latestJob.id, latestJobStatus: latestJob.status === "completed" ? "success" : latestJob.status === "pending" ? "queued" : latestJob.status };
+                const statusJob = latestVideoJob ?? latestJob;
+                return {
+                  ...project,
+                  storyboardCount: Math.max(project.storyboardCount, Array.isArray(prompts) ? prompts.length : 0),
+                  latestJobId: statusJob.id,
+                  latestJobStatus: statusJob.status === "completed" ? "success" : statusJob.status === "pending" ? "queued" : statusJob.status,
+                  latestJobType: statusJob.job_type,
+                  latestJobProgress: statusJob.progress,
+                  latestJobCurrentScene: statusJob.progress_current_scene ?? null,
+                  latestJobTotalScenes: statusJob.progress_total_scenes ?? null,
+                };
               })()}
               selected={selectedIds.has(project.id)}
             />

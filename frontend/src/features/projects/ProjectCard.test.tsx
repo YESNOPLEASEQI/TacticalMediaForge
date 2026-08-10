@@ -32,4 +32,15 @@ describe("project card actions", () => {
     fireEvent.click(selector);
     expect(onSelectedChange).toHaveBeenCalledWith(project.id, false);
   });
+
+  it("uses project state for the primary action", () => {
+    const props = { onArchive: vi.fn(), onContinue: vi.fn(), onDelete: vi.fn(), onOpen: vi.fn(), onRename: vi.fn() };
+    const { rerender } = render(<ProjectCard {...props} project={{ ...project, latestJobType: "video_generation", latestJobStatus: "running", latestJobCurrentScene: 2, latestJobTotalScenes: 4 }} />);
+    expect(screen.getByRole("button", { name: /查看生成进度/ })).toBeInTheDocument();
+    expect(screen.getByText("SHOT 02 / 04")).toBeInTheDocument();
+    rerender(<ProjectCard {...props} project={{ ...project, current_stage: "output", status: "completed", latestJobStatus: "success", videoUrl: "/final.mp4" }} />);
+    expect(screen.getByRole("button", { name: /查看成片/ })).toBeInTheDocument();
+    rerender(<ProjectCard {...props} project={{ ...project, current_stage: "output", status: "completed", latestJobStatus: "success", videoUrl: "/final.mp4", hasUnsubmittedChanges: true }} />);
+    expect(screen.getByRole("button", { name: /继续修改/ })).toBeInTheDocument();
+  });
 });

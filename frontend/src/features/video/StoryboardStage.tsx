@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CheckCircle2, WandSparkles } from "lucide-react";
+import { CheckCircle2, Info, WandSparkles } from "lucide-react";
 import { SectionPanel } from "@/components/operations/OperationsShell";
 import { SpotlightCard } from "@/components/react-bits/SpotlightCard";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,7 @@ export function StoryboardStage({
   onDeleteReference,
 }: StoryboardStageProps) {
   const stageRef = React.useRef<HTMLDivElement>(null);
+  const [engineNotice, setEngineNotice] = React.useState<string | null>(null);
   const seenSceneIds = React.useRef(new Set<string>());
   const hasDuplicatePrompts = hasDuplicateStoryboardPrompts(scenes);
   const referenceAssets = referenceAssetsProp;
@@ -80,15 +81,33 @@ export function StoryboardStage({
   );
   const sceneKey = scenes.map((scene) => scene.id).join("|");
   const assetKey = referenceAssets.map((asset) => asset.id).join("|");
+  const usageCounts = React.useMemo(() => Object.fromEntries(referenceAssets.map((asset) => [
+    asset.id,
+    scenes.filter((scene) => (scene.referenceAssetIds ?? []).includes(asset.id)).length,
+  ])), [referenceAssets, scenes]);
+  const boundSceneCount = scenes.filter((scene) => (scene.referenceAssetIds?.length ?? 0) > 0).length;
   const referenceMessage = research.status === "researching"
-    ? "正在获取联网参考并生成分镜…"
+    ? "正在获取联网事实资料并生成分镜…"
     : research.status === "reference_unavailable" && Boolean(research.activeJobId) && research.warnings.length > 0
-      ? "联网参考暂不可用，本次已按普通模式生成。"
+      ? "联网事实增强暂不可用，本次已按快速模式生成。"
       : research.status === "partial_reference"
         ? `部分联网资料不可用，已使用现有参考继续生成（${research.sourceCount} 个来源）`
         : research.status === "reference_ready"
-          ? `已使用联网参考生成内容（${research.sourceCount} 个来源）`
+          ? `已使用联网事实增强生成内容（${research.sourceCount} 个来源）`
           : null;
+  const confirmationReason = React.useMemo(() => {
+    if (scenes.length === 0) return "请先生成至少一个分镜。";
+    if (hasDuplicatePrompts) return "存在重复的英文生成提示词，请分别编辑后再确认。";
+    const incompleteIndex = scenes.findIndex((scene) => !scene.narration.trim() || !scene.mediaPrompt.trim());
+    if (incompleteIndex >= 0) return `SHOT ${String(incompleteIndex + 1).padStart(2, "0")} 缺少解说词或英文生成提示词。`;
+    const chineseIndex = scenes.findIndex((scene) => containsCjk(scene.mediaPrompt));
+    if (chineseIndex >= 0) return `SHOT ${String(chineseIndex + 1).padStart(2, "0")} 的生成提示词包含中文。`;
+    const unanchoredIndex = scenes.findIndex((scene) => isUnanchoredStoryboardPrompt(scene.mediaPrompt));
+    if (unanchoredIndex >= 0) return `SHOT ${String(unanchoredIndex + 1).padStart(2, "0")} 的生成提示词没有写明具体主体。`;
+    const overLimitIndex = scenes.findIndex((scene) => (scene.referenceAssetIds?.length ?? 0) > 4);
+    if (overLimitIndex >= 0) return `SHOT ${String(overLimitIndex + 1).padStart(2, "0")} 超过每镜 4 张参考图上限。`;
+    return null;
+  }, [hasDuplicatePrompts, scenes]);
 
   useGSAP(() => {
     const enteringIds = newIds(seenSceneIds.current, scenes.map((scene) => scene.id));
@@ -127,32 +146,51 @@ export function StoryboardStage({
           title="分镜规划"
         >
           <div className="space-y-5">
-            <ResearchModeSelector
-              capabilityEnabled={researchCapabilityEnabled}
-              disabled={disabled}
-              mode={research.mode}
-              onChange={onModeChange}
-            />
+            <div className="space-y-2">
+              <p className="control-label">分镜生成依据</p>
+              <ResearchModeSelector
+                capabilityEnabled={researchCapabilityEnabled}
+                disabled={disabled}
+                mode={research.mode}
+                onChange={onModeChange}
+              />
+            </div>
             <div className="ops-panel-muted space-y-2 p-3">
-              <label className="control-label" htmlFor="reference-mode">Media generation mode</label>
-              <Select disabled={disabled} value={referenceMode} onValueChange={(value: "standard" | "h3") => onReferenceModeChange?.(value)}>
+              <label className="control-label" htmlFor="reference-mode">视频生成器</label>
+              <Select disabled={disabled} value={referenceMode} onValueChange={(value: "standard" | "h3") => {
+                if (referenceMode === "h3" && value === "standard" && boundSceneCount > 0) {
+                  setEngineNotice(`已切换到 LTX 2.3，${boundSceneCount} 个分镜的装备视觉参考绑定已保留；切回 MiniMax H3 后会自动恢复。`);
+                } else if (referenceMode === "standard" && value === "h3" && boundSceneCount > 0) {
+                  setEngineNotice(`已恢复 ${boundSceneCount} 个分镜的装备视觉参考绑定。`);
+                } else {
+                  setEngineNotice(null);
+                }
+                onReferenceModeChange?.(value);
+              }}>
                 <SelectTrigger id="reference-mode"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="standard">Standard LTX video</SelectItem>
-                  <SelectItem value="h3">MiniMax H3 visual references</SelectItem>
+                  <SelectItem value="standard">LTX 2.3</SelectItem>
+                  <SelectItem value="h3">MiniMax H3</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">H3 uses bound images as equipment identity/structure references; they are not first-frame conditioning.</p>
+              <p className="text-xs text-muted-foreground">LTX 2.3 使用文字提示生成；MiniMax H3 可额外绑定装备视觉参考。</p>
             </div>
-            <ReferenceAssetLibrary
-              assets={referenceAssets}
-              disabled={disabled}
-              isLoading={referenceAssetsLoading}
-              isUploading={referenceAssetsUploading}
-              onDelete={(assetId) => onDeleteReference?.(assetId)}
-              onUpload={(file) => onUploadReference?.(file)}
-              uploadError={referenceAssetsError}
-            />
+            {engineNotice ? <div className="flex gap-2 rounded-md border border-primary/30 bg-primary/8 px-3 py-2 text-sm text-muted-foreground" role="status"><Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{engineNotice}</div> : null}
+            {referenceMode === "h3" ? (
+              <ReferenceAssetLibrary
+                assets={referenceAssets}
+                boundSceneCount={boundSceneCount}
+                disabled={disabled}
+                isLoading={referenceAssetsLoading}
+                isUploading={referenceAssetsUploading}
+                onApplyAll={(assetIds) => onChange(scenes.map((scene) => ({ ...scene, referenceAssetIds: [...assetIds] })))}
+                onClearAll={() => onChange(scenes.map((scene) => ({ ...scene, referenceAssetIds: [] })))}
+                onDelete={(assetId) => onDeleteReference?.(assetId)}
+                onUpload={(file) => onUploadReference?.(file)}
+                uploadError={referenceAssetsError}
+                usageCounts={usageCounts}
+              />
+            ) : null}
             {referenceMessage ? (
               <div className="rounded-md border border-border/70 bg-background/35 px-3 py-2 text-sm text-muted-foreground">
                 <p role="status">{referenceMessage}</p>
@@ -185,7 +223,7 @@ export function StoryboardStage({
               <div className="ops-panel-muted flex min-h-48 flex-col items-center justify-center gap-3 p-6 text-center">
                 <WandSparkles className="h-7 w-7 text-primary" />
                 <p className="font-medium">脚本已就绪</p>
-                <Button disabled={disabled} isLoading={isGenerating} onClick={onGenerate} type="button"><WandSparkles className="h-4 w-4" />{research.mode === "verified" ? "联网参考生成" : "快速生成分镜"}</Button>
+                <Button disabled={disabled} isLoading={isGenerating} onClick={onGenerate} type="button"><WandSparkles className="h-4 w-4" />{research.mode === "verified" ? "联网事实增强生成分镜" : "快速生成分镜"}</Button>
               </div>
             ) : (
               <>
@@ -198,11 +236,12 @@ export function StoryboardStage({
                       onChange={(next) => onChange(scenes.map((item, position) => position === index ? next : item))}
                       referenceAssets={referenceAssets}
                       scene={scene}
+                      showReferences={referenceMode === "h3"}
                     />
                   ))}
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <Button disabled={disabled} isLoading={isGenerating} onClick={onGenerate} type="button" variant="secondary"><WandSparkles className="h-4 w-4" />{research.mode === "verified" ? "重新联网参考生成" : "重新生成分镜草稿"}</Button>
+                  <Button disabled={disabled} isLoading={isGenerating} onClick={onGenerate} type="button" variant="secondary"><WandSparkles className="h-4 w-4" />{research.mode === "verified" ? "重新使用联网事实增强生成" : "重新生成分镜草稿"}</Button>
                   <Button className="flex-1" disabled={disabled || !complete} onClick={onConfirm} type="button"><CheckCircle2 className="h-4 w-4" />确认分镜，进入视频生成</Button>
                 </div>
                 {hasUnanchoredPrompt ? (
@@ -214,6 +253,9 @@ export function StoryboardStage({
                   <p className="text-sm text-destructive" role="alert">
                     部分分镜使用了相同提示词，请重新生成或分别编辑后再确认。
                   </p>
+                ) : null}
+                {!complete && !hasUnanchoredPrompt && !hasDuplicatePrompts && confirmationReason ? (
+                  <p className="text-sm text-amber-200" role="status">确认按钮暂不可用：{confirmationReason}</p>
                 ) : null}
               </>
             )}

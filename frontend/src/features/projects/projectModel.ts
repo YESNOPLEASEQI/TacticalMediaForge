@@ -78,6 +78,8 @@ export function buildProjectCards(
       ? draftStoryboardCount
       : Number.isFinite(historyStoryboardCount) ? historyStoryboardCount : 0;
     const currentOutputIsValid = project.status === "completed" && project.current_stage === "output";
+    const contentRevision = typeof draft.contentRevision === "number" ? draft.contentRevision : 0;
+    const submittedRevision = typeof draft.submittedRevision === "number" ? draft.submittedRevision : 0;
     return {
       ...project,
       storyboardCount,
@@ -86,6 +88,11 @@ export function buildProjectCards(
       thumbnailUrl: currentOutputIsValid ? project.thumbnail_path ?? session?.thumbnail_url ?? null : null,
       videoUrl: currentOutputIsValid ? session?.video_url ?? null : null,
       session,
+      latestJobType: null,
+      latestJobProgress: null,
+      latestJobCurrentScene: null,
+      latestJobTotalScenes: null,
+      hasUnsubmittedChanges: contentRevision !== submittedRevision,
     };
   });
 }

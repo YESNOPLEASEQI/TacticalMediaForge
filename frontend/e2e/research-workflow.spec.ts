@@ -127,8 +127,8 @@ test("verified storyboard research remains explicit, stale-aware, and traceable"
   const capture = await mockApi(page);
   await page.goto("/#generate/project/project-a");
 
-  await expect(page.getByRole("button", { name: "联网参考", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "联网参考生成" }).click();
+  await expect(page.getByRole("button", { name: "联网事实增强", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "联网事实增强生成分镜" }).click();
   await expect(page.getByLabel("英文生成提示词")).toHaveValue(/generic aircraft/);
   await page.getByText("查看参考来源与提示").click();
   await expect(page.getByRole("link", { name: "Report" })).toBeVisible();
@@ -136,7 +136,7 @@ test("verified storyboard research remains explicit, stale-aware, and traceable"
   await page.getByRole("button", { name: "脚本", exact: true }).click();
   await page.getByLabel("项目标题").fill("Aircraft updated");
   await page.getByRole("button", { name: "分镜", exact: true }).click();
-  await page.getByRole("button", { name: "重新联网参考生成" }).click();
+  await page.getByRole("button", { name: "重新使用联网事实增强生成" }).click();
 
   await page.getByRole("button", { name: "确认分镜，进入视频生成" }).click();
   await page.getByRole("button", { name: "开始生成视频" }).click();

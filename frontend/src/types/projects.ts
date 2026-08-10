@@ -1,5 +1,6 @@
 import type { SessionDetail, SessionSummary } from "@/types/history";
 import type { VideoWorkflowDraft } from "@/features/video/workflow";
+import type { GlobalJobType } from "@/types/jobs";
 
 export type ProjectStage = "script" | "storyboard" | "video" | "output";
 
@@ -50,6 +51,11 @@ export interface ProjectCardData extends Project {
   thumbnailUrl: string | null;
   videoUrl: string | null;
   session: SessionSummary | null;
+  latestJobType?: GlobalJobType | null;
+  latestJobProgress?: number | null;
+  latestJobCurrentScene?: number | null;
+  latestJobTotalScenes?: number | null;
+  hasUnsubmittedChanges?: boolean;
 }
 
 export interface ProjectWorkspace {

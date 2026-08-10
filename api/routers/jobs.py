@@ -44,6 +44,8 @@ def _read(job: GenerationJob) -> GenerationJobRead:
                 "completed_at": task.completed_at or payload.completed_at,
                 "progress_stage": task.progress.stage if task.progress else None,
                 "progress_message": task.progress.message if task.progress else None,
+                "progress_current_scene": task.progress.current_scene if task.progress else None,
+                "progress_total_scenes": task.progress.total_scenes if task.progress else None,
             }
         )
     return payload.model_copy(

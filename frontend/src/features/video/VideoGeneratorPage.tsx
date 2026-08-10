@@ -27,7 +27,6 @@ import {
   buildVideoRequest,
   canEnterStage,
   canGenerateVideo,
-  containsCjk,
   createEmptyWorkflow,
   enterStoryboardFromScript,
   hasUnsubmittedChanges,
@@ -36,6 +35,7 @@ import {
   markResearchInputsChanged,
   markWorkflowSubmitted,
   saveWorkflowDraft,
+  videoGenerationBlockReason,
   type EditableStoryboardScene,
   type VideoWorkflowDraft,
   type WorkflowStage,
@@ -44,41 +44,25 @@ import {
 function withTaskSceneStatus(
   scenes: EditableStoryboardScene[],
   status?: string,
-  percentage = 0,
+  currentScene?: number | null,
 ) {
   if (!status) return scenes;
   if (status === "completed")
     return scenes.map((scene) => ({ ...scene, status: "completed" as const }));
   if (status === "failed") {
-    const active = Math.min(
-      scenes.length - 1,
-      Math.floor((percentage / 100) * scenes.length),
-    );
+    const active = typeof currentScene === "number" ? currentScene - 1 : -1;
     return scenes.map((scene, index) => ({
       ...scene,
-      status:
-        index === active
-          ? ("failed" as const)
-          : index < active
-            ? ("completed" as const)
-            : ("queued" as const),
+      status: index === active ? ("failed" as const) : ("queued" as const),
     }));
   }
   if (status === "pending")
     return scenes.map((scene) => ({ ...scene, status: "queued" as const }));
   if (status === "running") {
-    const active = Math.min(
-      scenes.length - 1,
-      Math.floor((percentage / 100) * scenes.length),
-    );
+    const active = typeof currentScene === "number" ? currentScene - 1 : -1;
     return scenes.map((scene, index) => ({
       ...scene,
-      status:
-        index < active
-          ? ("completed" as const)
-          : index === active
-            ? ("running" as const)
-            : ("queued" as const),
+      status: index === active ? ("running" as const) : ("queued" as const),
     }));
   }
   return scenes;
@@ -348,13 +332,13 @@ export function VideoGeneratorPage({
       ...current,
       research: { ...current.research, status: "researching", warnings: [] },
     })),
-    onSuccess: () => toast({ title: "联网参考生成已开始", description: "网络不可用时会自动按普通模式生成。" }),
+    onSuccess: () => toast({ title: "联网事实增强已开始", description: "网络不可用时会自动按快速模式生成。" }),
     onError: (error) => {
       setDraft((current) => ({
         ...current,
         research: { ...current.research, status: "reference_unavailable" },
       }));
-      toast({ title: "参考任务启动失败", description: error instanceof Error ? error.message : "无法创建联网参考任务。", variant: "destructive" });
+      toast({ title: "事实增强任务启动失败", description: error instanceof Error ? error.message : "无法创建联网事实增强任务。", variant: "destructive" });
     },
   });
 
@@ -441,7 +425,7 @@ export function VideoGeneratorPage({
   const isRunning = task?.status === "pending" || task?.status === "running";
   const workflowBusy = isRunning || Boolean(activeResearchJob) || Boolean(activeStoryboardJob);
   const videoReady = canGenerateVideo(draft);
-  const hasChinesePrompt = draft.storyboard.some((scene) => containsCjk(scene.mediaPrompt));
+  const generationBlockReason = videoGenerationBlockReason(draft);
   const templates = templatesQuery.data?.templates ?? [];
   const bgmFiles = bgmQuery.data?.bgm_files ?? [];
   const apiAvailable = healthQuery.isSuccess;
@@ -450,9 +434,9 @@ export function VideoGeneratorPage({
       withTaskSceneStatus(
         draft.storyboard,
         task?.status,
-        task?.progress?.percentage,
+        task?.progress?.current_scene,
       ),
-    [draft.storyboard, task?.status, task?.progress?.percentage],
+    [draft.storyboard, task?.status, task?.progress?.current_scene],
   );
   const resourceError =
     templatesQuery.error instanceof Error
@@ -490,7 +474,6 @@ export function VideoGeneratorPage({
       return;
     }
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-    const targetIndex = ["script", "storyboard", "video"].indexOf(stage);
     const timeline = gsap.timeline({ defaults: { overwrite: "auto" } });
     timeline.to(stageRef.current, {
       autoAlpha: 0,
@@ -498,11 +481,7 @@ export function VideoGeneratorPage({
       scale: reduced ? 1 : 0.994,
       duration: reduced ? 0.14 : 0.28,
       ease: "interface",
-    }).to("[data-testid='workflow-progress-line']", {
-      scaleX: targetIndex / 2,
-      duration: reduced ? 0.12 : 0.44,
-      ease: "interface",
-    }, ">").fromTo(`[data-workflow-step='${stage}'] .workflow-step__marker`, {
+    }).fromTo(`[data-workflow-step='${stage}'] .workflow-step__marker`, {
       scale: reduced ? 1 : 0.86,
     }, {
       scale: 1,
@@ -580,7 +559,6 @@ export function VideoGeneratorPage({
       <div className="workflow-stage-viewport" data-stage={draft.stage} ref={stageRef}>
       {draft.stage === "script" ? (
         <ScriptStage
-          bgmFiles={bgmFiles}
           config={draft.config}
           disabled={isRunning}
           isGenerating={narrationMutation.isPending || Boolean(activeScriptJob)}
@@ -624,7 +602,6 @@ export function VideoGeneratorPage({
           onSourceTextChange={(sourceText) => patchResearchInputs({ sourceText })}
           onTitleChange={(title) => patchResearchInputs({ title })}
           sourceText={draft.sourceText}
-          templates={templates}
           title={draft.title}
         />
       ) : null}
@@ -683,12 +660,10 @@ export function VideoGeneratorPage({
 
       {draft.stage === "video" ? (
         <VideoStage
+          bgmFiles={bgmFiles}
           canGenerate={videoReady}
-          generationBlockReason={!videoReady
-            ? hasChinesePrompt
-              ? "生成提示词只能使用英文，请先移除中文字符。"
-              : "请先确认至少一个包含旁白和提示词的分镜。"
-            : undefined}
+          config={draft.config}
+          generationBlockReason={generationBlockReason}
           hasUnsubmittedChanges={hasUnsubmittedChanges(draft)}
           isCancelling={cancelMutation.isPending}
           isRestoringTask={projectQuery.isPending}
@@ -696,9 +671,14 @@ export function VideoGeneratorPage({
           onCancel={() => {
             if (task?.task_id) cancelMutation.mutate(task.task_id);
           }}
+          onBack={() => transitionStage("storyboard", () => patchDraft({ stage: "storyboard" }))}
+          onConfigChange={(config) => patchContent({ config })}
           onGenerate={() => { persistDraftNow(); generateMutation.mutate(buildVideoRequest(draft)); }}
+          referenceAssets={(referenceAssetsQuery.data ?? []) as ReferenceAsset[]}
+          referenceMode={draft.config.referenceMode ?? "standard"}
           scenes={displayedScenes}
           task={task}
+          templates={templates}
         />
       ) : null}
       </div>

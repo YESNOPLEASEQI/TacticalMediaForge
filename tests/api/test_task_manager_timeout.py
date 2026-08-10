@@ -25,3 +25,23 @@ async def test_execute_task_uses_per_task_timeout_override():
 
     assert task.status == TaskStatus.FAILED
     assert task.error == "Task timed out after 0.01 seconds"
+
+
+def test_progress_keeps_real_scene_coordinates():
+    manager = TaskManager()
+    task = manager.create_task(TaskType.VIDEO_GENERATION)
+
+    manager.update_progress(
+        task.task_id,
+        current=2500,
+        total=10000,
+        message="生成视觉素材",
+        stage="media",
+        current_scene=2,
+        total_scenes=5,
+    )
+
+    assert task.progress is not None
+    assert task.progress.percentage == 25
+    assert task.progress.current_scene == 2
+    assert task.progress.total_scenes == 5

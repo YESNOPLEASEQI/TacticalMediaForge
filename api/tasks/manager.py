@@ -297,6 +297,8 @@ class TaskManager:
         total: int,
         message: str = "",
         stage: Optional[str] = None,
+        current_scene: Optional[int] = None,
+        total_scenes: Optional[int] = None,
     ):
         """
         Update task progress
@@ -318,6 +320,8 @@ class TaskManager:
             percentage=percentage,
             message=message,
             stage=stage,
+            current_scene=current_scene,
+            total_scenes=total_scenes,
         )
     
     def cancel_task(self, task_id: str) -> bool:

@@ -27,3 +27,5 @@ class GenerationJobRead(BaseModel):
     completed_at: Optional[datetime]
     progress_stage: Optional[str] = None
     progress_message: Optional[str] = None
+    progress_current_scene: Optional[int] = None
+    progress_total_scenes: Optional[int] = None

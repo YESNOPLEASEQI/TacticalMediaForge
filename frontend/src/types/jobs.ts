@@ -20,6 +20,8 @@ export interface GlobalJob {
   completed_at: string | null;
   progress_stage?: string | null;
   progress_message?: string | null;
+  progress_current_scene?: number | null;
+  progress_total_scenes?: number | null;
 }
 
 export interface JobAcceptedResponse {

@@ -161,6 +161,8 @@ export interface TaskProgress {
   percentage: number;
   message: string;
   stage?: string | null;
+  current_scene?: number | null;
+  total_scenes?: number | null;
 }
 
 export interface VideoTaskResult {

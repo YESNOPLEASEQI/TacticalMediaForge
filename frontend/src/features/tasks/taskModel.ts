@@ -262,6 +262,8 @@ export function taskFromJob(job: GlobalJob | undefined): Task | undefined {
       percentage: job.progress,
       message: job.progress_message ?? (job.status === "running" ? "后台生成中" : "任务状态已同步"),
       stage: job.progress_stage,
+      current_scene: job.progress_current_scene,
+      total_scenes: job.progress_total_scenes,
     },
     result: videoUrl ? { ...job.result_json, video_url: videoUrl } : job.result_json,
     error: job.error_message ?? undefined,

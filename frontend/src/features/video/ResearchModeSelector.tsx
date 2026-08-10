@@ -27,7 +27,7 @@ export function GenerationModeSelector({
         variant={mode === "reference" ? "default" : "secondary"}
       >
         <Globe2 className="h-5 w-5 shrink-0" />
-        <span className="font-medium">联网参考</span>
+        <span className="font-medium">联网事实增强</span>
       </Button>
       <Button
         aria-pressed={mode === "quick"}
@@ -54,7 +54,7 @@ interface ResearchModeSelectorProps {
 export function ResearchModeSelector(props: ResearchModeSelectorProps) {
   return (
     <GenerationModeSelector
-      ariaLabel="分镜生成模式"
+      ariaLabel="分镜生成依据"
       capabilityEnabled={props.capabilityEnabled}
       disabled={props.disabled}
       mode={props.mode === "verified" ? "reference" : "quick"}

@@ -15,6 +15,7 @@ interface StoryboardCardProps {
   displayIndex?: number;
   onChange?: (scene: EditableStoryboardScene) => void;
   referenceAssets?: ReferenceAsset[];
+  showReferences?: boolean;
 }
 
 function sceneStatus(scene: EditableStoryboardScene) {
@@ -24,7 +25,7 @@ function sceneStatus(scene: EditableStoryboardScene) {
   return { label: "待生成", variant: "secondary" as const };
 }
 
-export function StoryboardCard({ scene, disabled = false, readonly = false, displayIndex, onChange, referenceAssets = [] }: StoryboardCardProps) {
+export function StoryboardCard({ scene, disabled = false, readonly = false, displayIndex, onChange, referenceAssets = [], showReferences = false }: StoryboardCardProps) {
   const cardRef = React.useRef<HTMLElement>(null);
   const [pickerOpen, setPickerOpen] = React.useState(false);
   const update = (patch: Partial<EditableStoryboardScene>) => onChange?.({ ...scene, ...patch });
@@ -78,12 +79,12 @@ export function StoryboardCard({ scene, disabled = false, readonly = false, disp
           {hasChinesePrompt ? <p className="text-xs text-destructive" role="alert">提示词包含中文，无法确认或提交。</p> : null}
         </div>
 
-        {!locked ? (
+        {showReferences && !locked ? (
           <div className="space-y-2 rounded-md border border-border/60 bg-background/30 p-2.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <p className="control-label">H3 visual references</p>
-                <p className="text-xs text-muted-foreground">Identity/structure reference only, never a first frame ({selectedReferenceIds.length}/4).</p>
+                <p className="control-label">装备视觉参考</p>
+                <p className="text-xs text-muted-foreground">用于保持装备身份与结构一致，不作为首帧（已选 {selectedReferenceIds.length}/4）。</p>
               </div>
               <Button
                 aria-expanded={pickerOpen}
@@ -94,14 +95,14 @@ export function StoryboardCard({ scene, disabled = false, readonly = false, disp
                 variant="secondary"
               >
                 <ImagePlus className="h-4 w-4" aria-hidden="true" />
-                {pickerOpen ? "Close picker" : "Select reference"}
+                {pickerOpen ? "收起" : "+ 选择"}
               </Button>
             </div>
             {selectedAssets.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {selectedAssets.map((asset) => (
                   <button
-                    aria-label={`Remove ${asset.filename} from shot`}
+                    aria-label={`从当前分镜移除 ${asset.filename}`}
                     className="group relative overflow-hidden rounded border border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     key={asset.id}
                     onClick={() => toggleReference(asset.id)}
@@ -113,10 +114,10 @@ export function StoryboardCard({ scene, disabled = false, readonly = false, disp
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">No reference bound to this shot.</p>
+              <p className="text-xs text-muted-foreground">当前分镜未绑定装备视觉参考。</p>
             )}
             {pickerOpen ? (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="Available H3 references">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="可用装备视觉参考">
                 {referenceAssets.map((asset) => {
                   const selected = selectedReferenceIds.includes(asset.id);
                   const atLimit = !selected && selectedReferenceIds.length >= 4;
@@ -138,10 +139,13 @@ export function StoryboardCard({ scene, disabled = false, readonly = false, disp
                 })}
               </div>
             ) : null}
+            {selectedReferenceIds.length >= 4 ? (
+              <p className="text-xs text-amber-200" role="status">已达到每镜 4 张参考图上限。</p>
+            ) : null}
           </div>
-        ) : selectedAssets.length > 0 ? (
+        ) : showReferences && selectedAssets.length > 0 ? (
           <div className="space-y-2 rounded-md border border-border/60 bg-background/30 p-2.5">
-            <p className="control-label">H3 visual references ({selectedAssets.length})</p>
+            <p className="control-label">装备视觉参考（{selectedAssets.length}）</p>
             <div className="flex flex-wrap gap-2">
               {selectedAssets.map((asset) => <img alt={asset.filename} className="h-12 w-16 rounded border border-border/70 object-cover" key={asset.id} src={asset.url} />)}
             </div>

@@ -340,6 +340,9 @@ async def generate_video_async(
                     current=max(0, min(10000, int(event.progress * 10000))),
                     total=10000,
                     message=message,
+                    stage=event.action or event.event_type,
+                    current_scene=event.frame_current,
+                    total_scenes=event.frame_total,
                 )
             
             # Build video generation parameters

@@ -33,6 +33,8 @@ class TaskProgress(BaseModel):
     percentage: float = 0.0
     message: str = ""
     stage: Optional[str] = None
+    current_scene: Optional[int] = None
+    total_scenes: Optional[int] = None
 
 
 class Task(BaseModel):

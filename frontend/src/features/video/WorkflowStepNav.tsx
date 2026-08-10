@@ -45,6 +45,7 @@ export function WorkflowStepNav({
               aria-current={isActive ? "step" : undefined}
               className={cn("workflow-step", isActive && "is-active", isComplete && "is-complete")}
               data-active={isActive ? "true" : "false"}
+              data-workflow-step={definition.id}
               disabled={!enabled[definition.id]}
               onClick={() => onStepClick(step)}
               type="button"

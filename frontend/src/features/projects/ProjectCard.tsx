@@ -26,6 +26,23 @@ export function ProjectCard({ project, selected = false, onSelectedChange, onArc
   const cardRef = React.useRef<HTMLElement>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
   const isArchived = project.status === "archived";
+  const videoJobActive = project.latestJobType === "video_generation" && (project.latestJobStatus === "queued" || project.latestJobStatus === "running");
+  const actionLabel = videoJobActive
+    ? "查看生成进度"
+    : project.videoUrl && project.hasUnsubmittedChanges
+      ? "继续修改"
+      : project.videoUrl
+        ? "查看成片"
+        : project.current_stage === "storyboard"
+          ? "继续分镜"
+          : project.current_stage === "video"
+            ? "进入生成"
+            : "继续脚本";
+  const progressLabel = videoJobActive && project.latestJobCurrentScene && project.latestJobTotalScenes
+    ? `SHOT ${String(project.latestJobCurrentScene).padStart(2, "0")} / ${String(project.latestJobTotalScenes).padStart(2, "0")}`
+    : videoJobActive && project.latestJobProgress != null
+      ? `${Math.round(project.latestJobProgress)}%`
+      : jobStatusLabel(project.latestJobStatus);
 
   const { contextSafe } = useGSAP({ scope: cardRef });
 
@@ -116,12 +133,12 @@ export function ProjectCard({ project, selected = false, onSelectedChange, onArc
 
         <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
           <div><dt className="text-muted-foreground">分镜数量</dt><dd className="mt-0.5">{project.storyboardCount} 镜</dd></div>
-          <div><dt className="text-muted-foreground">生成进度</dt><dd className="mt-0.5">{jobStatusLabel(project.latestJobStatus)}</dd></div>
+          <div><dt className="text-muted-foreground">当前状态</dt><dd className="mt-0.5">{progressLabel}</dd></div>
           <div className="col-span-2"><dt className="text-muted-foreground">更新时间</dt><dd className="mt-0.5 flex items-center gap-1"><Clock3 className="h-3 w-3" />{formatProjectDate(project.updated_at)}</dd></div>
         </dl>
 
         <div className="flex items-center gap-2 border-t border-border/70 pt-3">
-          <Button disabled={isArchived} onClick={() => onContinue(project.id)} size="sm" type="button"><Play className="h-3.5 w-3.5" aria-hidden="true" />继续创作</Button>
+          <Button disabled={isArchived} onClick={() => onContinue(project.id)} size="sm" type="button"><Play className="h-3.5 w-3.5" aria-hidden="true" />{actionLabel}</Button>
           {project.videoUrl ? <Film className="h-4 w-4 text-accent" aria-label="已有成片" /> : null}
           <div className="relative ml-auto" ref={menuRef}>
             <Button aria-expanded={menuOpen} aria-label="更多项目操作" onClick={() => setMenuOpen((value) => !value)} size="icon" type="button" variant="ghost"><MoreHorizontal className="h-4 w-4" /></Button>
@@ -134,6 +151,7 @@ export function ProjectCard({ project, selected = false, onSelectedChange, onArc
             ) : null}
           </div>
         </div>
+        {isArchived ? <p className="text-xs text-muted-foreground">项目已归档，恢复后才能继续编辑。</p> : null}
       </div>
     </article>
   );
