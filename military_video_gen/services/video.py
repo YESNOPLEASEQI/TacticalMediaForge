@@ -24,6 +24,7 @@ from typing import List, Literal, Optional
 import ffmpeg
 from loguru import logger
 
+from military_video_gen.utils.media_probe import probe_duration
 from military_video_gen.utils.os_util import get_resource_path, list_resource_files, resource_exists
 from military_video_gen.utils.safety import redact_path_for_log, sanitize_error_message
 
@@ -311,8 +312,9 @@ class VideoService:
     def _get_video_duration(self, video: str) -> float:
         """Get video duration in seconds"""
         try:
-            probe = ffmpeg.probe(video)
-            duration = float(probe['format']['duration'])
+            duration = probe_duration(video)
+            if duration is None:
+                raise RuntimeError("ffprobe returned no valid duration")
             return duration
         except Exception as e:
             logger.warning(f"Failed to get video duration: {sanitize_error_message(e)}")
@@ -321,8 +323,9 @@ class VideoService:
     def _get_audio_duration(self, audio: str) -> float:
         """Get audio duration in seconds"""
         try:
-            probe = ffmpeg.probe(audio)
-            duration = float(probe['format']['duration'])
+            duration = probe_duration(audio)
+            if duration is None:
+                raise RuntimeError("ffprobe returned no valid duration")
             return duration
         except Exception as e:
             logger.warning(

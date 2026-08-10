@@ -20,6 +20,7 @@ from loguru import logger
 from military_video_gen.models.progress import ProgressEvent
 from military_video_gen.models.storyboard import Storyboard, StoryboardConfig, StoryboardFrame
 from military_video_gen.utils.async_utils import run_blocking_until_stopped
+from military_video_gen.utils.media_probe import probe_duration
 from military_video_gen.utils.safety import (
     enforce_safe_generation_fields,
     redact_path_for_log,
@@ -163,7 +164,12 @@ class FrameProcessor:
                             action="media",
                         )
                     )
-                await self._step_generate_media(frame, config, progress_callback, total_frames)
+                if config.reference_mode == "h3":
+                    await self._step_generate_media_with_heartbeat(
+                        frame, config, progress_callback, total_frames
+                    )
+                else:
+                    await self._step_generate_media(frame, config, progress_callback, total_frames)
             elif has_existing_media:
                 # Log appropriate message based on media type
                 if frame.video_path:
@@ -214,6 +220,47 @@ class FrameProcessor:
         except Exception as e:
             logger.error(f"❌ Failed to process frame {frame.index}: {sanitize_error_message(e)}")
             raise
+
+    async def _step_generate_media_with_heartbeat(
+        self,
+        frame: StoryboardFrame,
+        config: StoryboardConfig,
+        progress_callback: Optional[Callable[[ProgressEvent], None]],
+        total_frames: int,
+    ):
+        """Run H3 generation while emitting a visible liveness heartbeat."""
+
+        if not progress_callback:
+            await self._step_generate_media(frame, config, None, total_frames)
+            return
+
+        started = asyncio.get_running_loop().time()
+
+        async def heartbeat():
+            while True:
+                await asyncio.sleep(30)
+                waited = int(asyncio.get_running_loop().time() - started)
+                try:
+                    progress_callback(
+                        ProgressEvent(
+                            event_type="frame_step",
+                            progress=0.26,
+                            frame_current=frame.index + 1,
+                            frame_total=total_frames,
+                            step=2,
+                            action="media",
+                            extra_info=f"H3 remote inference in progress; waited {waited}s",
+                        )
+                    )
+                except Exception as exc:
+                    logger.debug(f"H3 progress heartbeat failed: {sanitize_error_message(exc)}")
+
+        heartbeat_task = asyncio.create_task(heartbeat())
+        try:
+            await self._step_generate_media(frame, config, progress_callback, total_frames)
+        finally:
+            heartbeat_task.cancel()
+            await asyncio.gather(heartbeat_task, return_exceptions=True)
 
     async def _step_generate_audio(self, frame: StoryboardFrame, config: StoryboardConfig):
         """Step 1: Generate audio using TTS"""
@@ -619,12 +666,10 @@ class FrameProcessor:
     async def _get_audio_duration(self, audio_path: str) -> float:
         """Get audio duration in seconds"""
         try:
-            # Try using ffmpeg-python
-            import ffmpeg
-
-            probe = ffmpeg.probe(audio_path)
-            duration = float(probe["format"]["duration"])
-            return duration
+            duration = await run_blocking_until_stopped(probe_duration, audio_path)
+            if duration is not None:
+                return duration
+            raise RuntimeError("ffprobe returned no valid duration")
         except Exception as e:
             logger.warning(
                 f"Failed to get audio duration: {sanitize_error_message(e)}, using estimate"
@@ -771,11 +816,10 @@ class FrameProcessor:
     async def _get_video_duration(self, video_path: str) -> float:
         """Get video duration in seconds"""
         try:
-            import ffmpeg
-
-            probe = ffmpeg.probe(video_path)
-            duration = float(probe["format"]["duration"])
-            return duration
+            duration = await run_blocking_until_stopped(probe_duration, video_path)
+            if duration is not None:
+                return duration
+            raise RuntimeError("ffprobe returned no valid duration")
         except Exception as e:
             logger.warning(
                 f"Failed to get video duration: {sanitize_error_message(e)}, using audio duration"
