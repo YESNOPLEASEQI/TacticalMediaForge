@@ -5,10 +5,12 @@ Supports both synchronous and asynchronous video generation.
 """
 
 import os
+from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from loguru import logger
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.dependencies import MilitaryVideoGenDep
@@ -20,14 +22,94 @@ from api.schemas.video import (
     VideoGenerateResponse,
 )
 from api.tasks import TaskType, task_manager
+from military_video_gen.database.models import Asset, Project
 from military_video_gen.database.runtime_jobs import create_runtime_job
 from military_video_gen.database.session import get_db_session
 from military_video_gen.research.gate import enforce_verified_storyboard_gate
 from military_video_gen.utils.media_validation import probe_media_file
+from military_video_gen.utils.os_util import get_data_path
 from military_video_gen.utils.safety import sanitize_error_message
 
 router = APIRouter(prefix="/video", tags=["Video Generation"])
 DBSession = Annotated[AsyncSession, Depends(get_db_session)]
+
+
+async def resolve_reference_image_paths(
+    session: AsyncSession,
+    request_body: VideoGenerateRequest,
+) -> dict[str, list[str]]:
+    """Resolve scene reference IDs to owned files without accepting client paths."""
+    scenes = request_body.confirmed_storyboard or []
+    scene_ids = {
+        asset_id
+        for scene in scenes
+        for asset_id in scene.reference_asset_ids
+    }
+    if not scene_ids:
+        return {}
+    if not request_body.session_id:
+        raise HTTPException(
+            status_code=400,
+            detail="session_id is required when reference assets are selected",
+        )
+
+    project = await session.scalar(
+        select(Project).where(
+            Project.id == request_body.session_id,
+            Project.deleted_at.is_(None),
+        )
+    )
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project for reference assets not found")
+
+    assets = list(
+        (
+            await session.scalars(
+                select(Asset).where(
+                    Asset.project_id == project.id,
+                    Asset.id.in_(scene_ids),
+                    Asset.asset_type == "image",
+                    Asset.role == "visual_reference",
+                    Asset.deleted_at.is_(None),
+                )
+            )
+        ).all()
+    )
+    by_id = {asset.id: asset for asset in assets}
+    reference_root = Path(get_data_path("projects", project.id, "references")).resolve()
+
+    resolved_by_id: dict[str, str] = {}
+    for asset_id in scene_ids:
+        asset = by_id.get(asset_id)
+        if asset is None or not asset.local_path:
+            raise HTTPException(status_code=400, detail="Reference asset is not owned by the project")
+        candidate = Path(asset.local_path).resolve()
+        if not candidate.is_relative_to(reference_root) or not candidate.is_file():
+            raise HTTPException(status_code=400, detail="Reference asset file is unavailable")
+        resolved_by_id[asset_id] = str(candidate)
+
+    return {
+        str(scene.index): [resolved_by_id[asset_id] for asset_id in scene.reference_asset_ids]
+        for scene in scenes
+        if scene.reference_asset_ids
+    }
+
+
+def h3_generation_config(
+    request_body: VideoGenerateRequest,
+    military_video_gen,
+) -> tuple[str, str | None]:
+    """Return the configured H3 workflow and optional dedicated endpoint."""
+    h3_config = (military_video_gen.config.get("comfyui") or {}).get("h3_reference") or {}
+    if not h3_config.get("enabled", True):
+        raise HTTPException(status_code=503, detail="MiniMax H3 reference mode is disabled")
+    workflow = h3_config.get("workflow") or "selfhost/video_minimax_h3_reference.json"
+    if request_body.media_workflow and request_body.media_workflow != workflow:
+        raise HTTPException(
+            status_code=400,
+            detail="MiniMax H3 reference mode only accepts the configured H3 workflow",
+        )
+    return workflow, h3_config.get("comfyui_url") or None
 
 
 def path_to_url(request: Request, file_path: str) -> str:
@@ -56,6 +138,12 @@ async def generate_video_sync(
     Returns path to generated video, duration, and file size.
     """
     await enforce_verified_storyboard_gate(session, request_body)
+    reference_image_paths_by_scene = await resolve_reference_image_paths(session, request_body)
+    h3_workflow, h3_comfyui_url = (
+        h3_generation_config(request_body, military_video_gen)
+        if request_body.reference_mode == "h3"
+        else (None, None)
+    )
     try:
         logger.info(
             f"Sync video generation request accepted ({len(request_body.text)} chars)"
@@ -99,7 +187,12 @@ async def generate_video_sync(
             "prompt_prefix": request_body.prompt_prefix,
             "bgm_path": request_body.bgm_path,
             "bgm_volume": request_body.bgm_volume,
+            "reference_mode": request_body.reference_mode,
+            "reference_image_paths_by_scene": reference_image_paths_by_scene,
         }
+        if h3_workflow:
+            video_params["media_workflow"] = h3_workflow
+            video_params["reference_comfyui_url"] = h3_comfyui_url
         
         # Add TTS workflow if specified
         if request_body.tts_workflow:
@@ -165,6 +258,12 @@ async def generate_video_async(
     Returns task_id for tracking progress.
     """
     await enforce_verified_storyboard_gate(session, request_body)
+    reference_image_paths_by_scene = await resolve_reference_image_paths(session, request_body)
+    h3_workflow, h3_comfyui_url = (
+        h3_generation_config(request_body, military_video_gen)
+        if request_body.reference_mode == "h3"
+        else (None, None)
+    )
     try:
         logger.info(
             f"Async video generation request accepted ({len(request_body.text)} chars)"
@@ -269,8 +368,13 @@ async def generate_video_async(
                 "prompt_prefix": request_body.prompt_prefix,
                 "bgm_path": request_body.bgm_path,
                 "bgm_volume": request_body.bgm_volume,
+                "reference_mode": request_body.reference_mode,
+                "reference_image_paths_by_scene": reference_image_paths_by_scene,
                 "progress_callback": progress_callback,
             }
+            if h3_workflow:
+                video_params["media_workflow"] = h3_workflow
+                video_params["reference_comfyui_url"] = h3_comfyui_url
             
             # Add TTS workflow if specified
             if request_body.tts_workflow:
@@ -300,7 +404,13 @@ async def generate_video_async(
             return {
                 "video_url": video_url,
                 "duration": duration,
-                "file_size": file_size
+                "file_size": file_size,
+                "reference_mode": request_body.reference_mode,
+                "reference_asset_ids": [
+                    asset_id
+                    for scene in (request_body.confirmed_storyboard or [])
+                    for asset_id in scene.reference_asset_ids
+                ],
             }
         
         # Start execution

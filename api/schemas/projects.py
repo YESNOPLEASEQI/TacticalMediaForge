@@ -66,3 +66,18 @@ class ProjectRead(BaseModel):
     updated_at: datetime
     archived_at: Optional[datetime]
     deleted_at: Optional[datetime]
+
+
+class ReferenceAssetRead(BaseModel):
+    """Project-owned visual reference image returned by the reference library."""
+
+    id: str
+    project_id: str
+    filename: str
+    mime_type: str
+    size_bytes: int
+    width: int
+    height: int
+    metadata_json: dict[str, Any]
+    url: str
+    created_at: datetime

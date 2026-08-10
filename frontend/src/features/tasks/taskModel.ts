@@ -87,6 +87,7 @@ function researchScene(value: unknown, jobId: string, position: number): Editabl
       : "unverified",
     negativeConstraints: strings(scene.negative_constraints),
     warnings: strings(scene.warnings),
+    referenceAssetIds: strings(scene.reference_asset_ids),
     genericFallback: scene.generic_fallback
       ? researchScene(scene.generic_fallback, jobId, position)
       : null,

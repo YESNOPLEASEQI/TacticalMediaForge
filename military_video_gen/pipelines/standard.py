@@ -360,6 +360,11 @@ class StandardPipeline(LinearVideoPipeline):
                 f"TTS Mode: legacy (voice_id={final_voice_id}, workflow={final_tts_workflow})"
             )
 
+        media_workflow = ctx.params.get("media_workflow")
+        if ctx.params.get("reference_mode") == "h3" and not media_workflow:
+            h3_config = (self.core.config.get("comfyui") or {}).get("h3_reference") or {}
+            media_workflow = h3_config.get("workflow") or "selfhost/video_minimax_h3_reference.json"
+
         # Create config
         ctx.config = StoryboardConfig(
             task_id=ctx.task_id,
@@ -376,8 +381,10 @@ class StandardPipeline(LinearVideoPipeline):
             ref_audio=ctx.params.get("ref_audio"),
             media_width=ctx.params.get("media_width"),
             media_height=ctx.params.get("media_height"),
-            media_workflow=ctx.params.get("media_workflow"),
+            media_workflow=media_workflow,
             api_video_params=ctx.params.get("api_video_params"),
+            reference_mode=ctx.params.get("reference_mode", "standard"),
+            reference_comfyui_url=ctx.params.get("reference_comfyui_url"),
             frame_template=ctx.params.get("frame_template") or "1080x1920/default.html",
             template_params=ctx.params.get("template_params"),
         )
@@ -398,6 +405,11 @@ class StandardPipeline(LinearVideoPipeline):
         ]
         for i, (narration, image_prompt) in enumerate(zip(ctx.narrations, ctx.image_prompts)):
             confirmed_scene = confirmed_scenes[i] if i < len(confirmed_scenes) else {}
+            reference_asset_ids = list(confirmed_scene.get("reference_asset_ids") or [])
+            scene_key = str(confirmed_scene.get("index", i))
+            reference_paths = list(
+                (ctx.params.get("reference_image_paths_by_scene") or {}).get(scene_key, [])
+            )
             frame = StoryboardFrame(
                 index=i,
                 narration=narration,
@@ -420,8 +432,10 @@ class StandardPipeline(LinearVideoPipeline):
                     )
                     if confirmed_scene.get(key) is not None
                 },
+                reference_image_paths=reference_paths,
                 created_at=datetime.now(),
             )
+            frame.research_metadata["reference_asset_ids"] = reference_asset_ids
             ctx.storyboard.frames.append(frame)
 
     async def produce_assets(self, ctx: PipelineContext):

@@ -43,6 +43,7 @@ from api.routers import (
     jobs_router,
     llm_router,
     projects_router,
+    reference_assets_router,
     research_router,
     resources_router,
     tasks_router,
@@ -147,6 +148,7 @@ app.include_router(resources_router, prefix=api_config.api_prefix)
 app.include_router(frame_router, prefix=api_config.api_prefix)
 app.include_router(history_router, prefix=api_config.api_prefix)
 app.include_router(projects_router, prefix=api_config.api_prefix)
+app.include_router(reference_assets_router, prefix=api_config.api_prefix)
 app.include_router(jobs_router, prefix=api_config.api_prefix)
 app.include_router(research_router, prefix=api_config.api_prefix)
 

@@ -57,6 +57,54 @@ def test_video_request_accepts_confirmed_storyboard():
     assert request.confirmed_storyboard[0].media_prompt == "cinematic radar array"
 
 
+def test_video_request_accepts_h3_reference_ids_and_mode():
+    request = VideoGenerateRequest(
+        text="tracked vehicle",
+        mode="fixed",
+        reference_mode="h3",
+        confirmed_storyboard=[
+            {
+                "index": 0,
+                "narration": "tracked vehicle",
+                "media_prompt": "A tracked vehicle turns through dust.",
+                "reference_asset_ids": ["asset-a", "asset-b"],
+            }
+        ],
+    )
+
+    assert request.reference_mode == "h3"
+    assert request.confirmed_storyboard[0].reference_asset_ids == ["asset-a", "asset-b"]
+
+
+def test_video_request_rejects_duplicate_or_excessive_h3_references():
+    with pytest.raises(ValidationError):
+        VideoGenerateRequest(
+            text="vehicle",
+            mode="fixed",
+            confirmed_storyboard=[
+                {
+                    "index": 0,
+                    "narration": "vehicle",
+                    "media_prompt": "A vehicle crosses a dry field.",
+                    "reference_asset_ids": ["asset-a", "asset-a"],
+                }
+            ],
+        )
+    with pytest.raises(ValidationError):
+        VideoGenerateRequest(
+            text="vehicle",
+            mode="fixed",
+            confirmed_storyboard=[
+                {
+                    "index": 0,
+                    "narration": "vehicle",
+                    "media_prompt": "A vehicle crosses a dry field.",
+                    "reference_asset_ids": ["a", "b", "c", "d", "e"],
+                }
+            ],
+        )
+
+
 def test_video_request_rejects_chinese_media_prompt() -> None:
     with pytest.raises(ValidationError, match="English text only"):
         VideoGenerateRequest(

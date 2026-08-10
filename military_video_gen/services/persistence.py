@@ -391,6 +391,7 @@ class PersistenceService:
             "media_width": config.media_width,
             "media_height": config.media_height,
             "media_workflow": config.media_workflow,
+            "reference_mode": config.reference_mode,
             "frame_template": config.frame_template,
             "template_params": config.template_params,
         }
@@ -413,6 +414,7 @@ class PersistenceService:
             media_width=data.get("media_width", data.get("image_width", 1024)),  # Backward compatibility
             media_height=data.get("media_height", data.get("image_height", 1024)),  # Backward compatibility
             media_workflow=data.get("media_workflow", data.get("image_workflow")),  # Backward compatibility
+            reference_mode=data.get("reference_mode", "standard"),
             frame_template=data.get("frame_template", "1080x1920/default.html"),
             template_params=data.get("template_params"),
         )

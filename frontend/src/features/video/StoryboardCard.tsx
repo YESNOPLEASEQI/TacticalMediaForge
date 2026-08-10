@@ -1,10 +1,12 @@
 import * as React from "react";
-import { Clock3, Image, Video } from "lucide-react";
+import { Check, Clock3, Image, ImagePlus, Video, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { containsCjk, normalizeEstimatedDuration, type EditableStoryboardScene } from "@/features/video/workflow";
+import type { ReferenceAsset } from "@/types/api";
 
 interface StoryboardCardProps {
   scene: EditableStoryboardScene;
@@ -12,6 +14,7 @@ interface StoryboardCardProps {
   readonly?: boolean;
   displayIndex?: number;
   onChange?: (scene: EditableStoryboardScene) => void;
+  referenceAssets?: ReferenceAsset[];
 }
 
 function sceneStatus(scene: EditableStoryboardScene) {
@@ -21,12 +24,24 @@ function sceneStatus(scene: EditableStoryboardScene) {
   return { label: "待生成", variant: "secondary" as const };
 }
 
-export function StoryboardCard({ scene, disabled = false, readonly = false, displayIndex, onChange }: StoryboardCardProps) {
+export function StoryboardCard({ scene, disabled = false, readonly = false, displayIndex, onChange, referenceAssets = [] }: StoryboardCardProps) {
   const cardRef = React.useRef<HTMLElement>(null);
+  const [pickerOpen, setPickerOpen] = React.useState(false);
   const update = (patch: Partial<EditableStoryboardScene>) => onChange?.({ ...scene, ...patch });
   const status = sceneStatus(scene);
   const locked = readonly;
   const hasChinesePrompt = containsCjk(scene.mediaPrompt);
+  const selectedReferenceIds = scene.referenceAssetIds ?? [];
+  const selectedAssets = referenceAssets.filter((asset) => selectedReferenceIds.includes(asset.id));
+
+  const toggleReference = (assetId: string) => {
+    const next = selectedReferenceIds.includes(assetId)
+      ? selectedReferenceIds.filter((id) => id !== assetId)
+      : selectedReferenceIds.length < 4
+        ? [...selectedReferenceIds, assetId]
+        : selectedReferenceIds;
+    update({ referenceAssetIds: next });
+  };
 
   return (
     <article className="storyboard-card" data-scene-id={scene.id} data-status={scene.status} ref={cardRef}>
@@ -62,6 +77,76 @@ export function StoryboardCard({ scene, disabled = false, readonly = false, disp
           <p className="text-xs text-muted-foreground" id={`${scene.id}-prompt-help`}>直接用于图片或视频生成，仅允许英文。</p>
           {hasChinesePrompt ? <p className="text-xs text-destructive" role="alert">提示词包含中文，无法确认或提交。</p> : null}
         </div>
+
+        {!locked ? (
+          <div className="space-y-2 rounded-md border border-border/60 bg-background/30 p-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="control-label">H3 visual references</p>
+                <p className="text-xs text-muted-foreground">Identity/structure reference only, never a first frame ({selectedReferenceIds.length}/4).</p>
+              </div>
+              <Button
+                aria-expanded={pickerOpen}
+                disabled={disabled || referenceAssets.length === 0}
+                onClick={() => setPickerOpen((open) => !open)}
+                size="sm"
+                type="button"
+                variant="secondary"
+              >
+                <ImagePlus className="h-4 w-4" aria-hidden="true" />
+                {pickerOpen ? "Close picker" : "Select reference"}
+              </Button>
+            </div>
+            {selectedAssets.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {selectedAssets.map((asset) => (
+                  <button
+                    aria-label={`Remove ${asset.filename} from shot`}
+                    className="group relative overflow-hidden rounded border border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    key={asset.id}
+                    onClick={() => toggleReference(asset.id)}
+                    type="button"
+                  >
+                    <img alt={asset.filename} className="h-12 w-16 object-cover" src={asset.url} />
+                    <span className="absolute inset-0 hidden items-center justify-center bg-background/75 group-hover:flex"><X className="h-4 w-4" /></span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">No reference bound to this shot.</p>
+            )}
+            {pickerOpen ? (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="Available H3 references">
+                {referenceAssets.map((asset) => {
+                  const selected = selectedReferenceIds.includes(asset.id);
+                  const atLimit = !selected && selectedReferenceIds.length >= 4;
+                  return (
+                    <button
+                      aria-pressed={selected}
+                      className={`relative overflow-hidden rounded border text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selected ? "border-primary ring-1 ring-primary" : "border-border/70"}`}
+                      disabled={disabled || atLimit}
+                      key={asset.id}
+                      onClick={() => toggleReference(asset.id)}
+                      type="button"
+                    >
+                      <img alt={asset.filename} className="aspect-video w-full object-cover" src={asset.url} />
+                      <span className="flex items-center gap-1 truncate p-1 text-[11px] text-muted-foreground">
+                        {selected ? <Check className="h-3 w-3 text-primary" /> : null}{asset.filename}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
+        ) : selectedAssets.length > 0 ? (
+          <div className="space-y-2 rounded-md border border-border/60 bg-background/30 p-2.5">
+            <p className="control-label">H3 visual references ({selectedAssets.length})</p>
+            <div className="flex flex-wrap gap-2">
+              {selectedAssets.map((asset) => <img alt={asset.filename} className="h-12 w-16 rounded border border-border/70 object-cover" key={asset.id} src={asset.url} />)}
+            </div>
+          </div>
+        ) : null}
 
         {!locked ? (
           <div className="grid grid-cols-2 gap-3 rounded-md border border-border/60 bg-background/30 p-2.5">

@@ -120,6 +120,39 @@ class VideoSubConfig(BaseModel):
     )
 
 
+class H3ReferenceConfig(BaseModel):
+    """MiniMax H3 reference-to-video configuration."""
+
+    enabled: bool = Field(default=True, description="Enable MiniMax H3 reference shots")
+    comfyui_url: str = Field(
+        default="",
+        description="Optional dedicated ComfyUI endpoint; empty uses the global endpoint",
+    )
+    workflow: str = Field(
+        default="selfhost/video_minimax_h3_reference.json",
+        description="API-format ComfyUI workflow based on MiniMaxH3ReferenceToVideo",
+    )
+    max_reference_images: int = Field(default=4, ge=1, le=9)
+    diffusion_model: str = Field(
+        default="",
+        description="Optional H3 diffusion model filename override for the target ComfyUI installation",
+    )
+    text_encoder: str = Field(
+        default="",
+        description="Optional H3 text encoder filename override for the target ComfyUI installation",
+    )
+    width: int = Field(
+        default=1344,
+        ge=256,
+        description="H3 generation width; kept independent from the composition template size",
+    )
+    height: int = Field(
+        default=768,
+        ge=256,
+        description="H3 generation height; kept independent from the composition template size",
+    )
+
+
 class ComfyUIConfig(BaseModel):
     """ComfyUI configuration (includes global settings and service-specific configs)"""
 
@@ -142,6 +175,10 @@ class ComfyUIConfig(BaseModel):
     )
     video: VideoSubConfig = Field(
         default_factory=VideoSubConfig, description="Video-specific configuration"
+    )
+    h3_reference: H3ReferenceConfig = Field(
+        default_factory=H3ReferenceConfig,
+        description="MiniMax H3 visual reference configuration",
     )
 
 

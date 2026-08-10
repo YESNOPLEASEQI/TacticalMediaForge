@@ -29,6 +29,7 @@ export interface EditableStoryboardScene {
   verificationStatus?: VerificationStatus;
   negativeConstraints?: string[];
   warnings?: string[];
+  referenceAssetIds?: string[];
   genericFallback?: EditableStoryboardScene | null;
 }
 
@@ -51,6 +52,7 @@ export interface VideoWorkflowConfig {
   bgmEnabled: boolean;
   bgmPath: string;
   bgmVolume: number;
+  referenceMode?: "standard" | "h3";
 }
 
 export interface VideoWorkflowDraft {
@@ -182,6 +184,7 @@ export function createEmptyWorkflow(
       bgmEnabled: false,
       bgmPath: "",
       bgmVolume: 0.3,
+      referenceMode: "standard",
     },
   };
 }
@@ -265,6 +268,7 @@ export function createStoryboard(
         verificationStatus: "unverified",
         negativeConstraints: [],
         warnings: [],
+        referenceAssetIds: [],
       };
     });
 }
@@ -328,6 +332,9 @@ export function restoreWorkflowFromHistory(detail: SessionDetail): VideoWorkflow
       verificationStatus: scene.verification_status ?? "unverified",
       negativeConstraints: Array.isArray(scene.negative_constraints) ? scene.negative_constraints.filter((item): item is string => typeof item === "string") : [],
       warnings: Array.isArray(scene.warnings) ? scene.warnings.filter((item): item is string => typeof item === "string") : [],
+      referenceAssetIds: Array.isArray(scene.reference_asset_ids)
+        ? scene.reference_asset_ids.filter((item): item is string => typeof item === "string")
+        : [],
     } satisfies EditableStoryboardScene;
   });
   const hasVideo = Boolean(detail.session.video_url || job?.result?.video_url);
@@ -363,6 +370,7 @@ export function restoreWorkflowFromHistory(detail: SessionDetail): VideoWorkflow
       bgmEnabled: Boolean(params.bgm_path),
       bgmPath: textValue(params.bgm_path),
       bgmVolume: numberValue(params.bgm_volume, 0.3),
+      referenceMode: params.reference_mode === "h3" ? "h3" : "standard",
     },
   });
 }
@@ -400,6 +408,7 @@ export function canGenerateVideo(draft: VideoWorkflowDraft) {
     draft.storyboard.length > 0 &&
     !hasDuplicateStoryboardPrompts(draft.storyboard) &&
     draft.storyboard.every((scene) => (
+      (scene.referenceAssetIds?.length ?? 0) <= 4 &&
       scene.narration.trim() &&
       scene.mediaPrompt.trim() &&
       !containsCjk(scene.mediaPrompt) &&
@@ -458,7 +467,9 @@ export function buildVideoRequest(draft: VideoWorkflowDraft): VideoGenerateReque
       verification_status: scene.verificationStatus ?? "unverified",
       negative_constraints: scene.negativeConstraints ?? [],
       warnings: scene.warnings ?? [],
+      reference_asset_ids: scene.referenceAssetIds ?? [],
     })),
+    reference_mode: draft.config.referenceMode ?? "standard",
     verification_mode: canUseVerifiedGeneration(draft) ? "verified" : "unverified",
     research_topic: canUseVerifiedGeneration(draft) ? draft.title.trim() || draft.sourceText.trim() : null,
     script_revision: draft.research.scriptRevision,
@@ -469,7 +480,7 @@ export function buildVideoRequest(draft: VideoWorkflowDraft): VideoGenerateReque
     max_narration_words: 20,
     min_image_prompt_words: 30,
     max_image_prompt_words: 60,
-    media_workflow: draft.config.mediaWorkflow,
+    media_workflow: draft.config.referenceMode === "h3" ? null : draft.config.mediaWorkflow,
     video_fps: 30,
     frame_template: draft.config.frameTemplate,
     bgm_path: draft.config.bgmEnabled ? draft.config.bgmPath || null : null,
@@ -487,24 +498,36 @@ export function loadWorkflowDraft(sessionId: string | null): VideoWorkflowDraft 
     const value = window.localStorage.getItem(workflowStorageKey(sessionId));
     if (!value) return null;
     const parsed = JSON.parse(value) as VideoWorkflowDraft;
-    return parsed.version === 1
-      ? {
-          ...parsed,
-          contentRevision: parsed.contentRevision ?? 0,
-          submittedRevision: parsed.submittedRevision ?? 0,
-          scriptMode: parsed.scriptMode ?? createEmptyWorkflow(sessionId).scriptMode,
-          research: {
-            ...createEmptyWorkflow(sessionId).research,
-            ...parsed.research,
-            status: parsed.research?.status ?? (
-              parsed.research?.mode === "verified" ? "reference_unavailable" : "quick"
-            ),
-            sourceCount: parsed.research?.sourceCount ?? 0,
-            sources: parsed.research?.sources ?? [],
-            warnings: parsed.research?.warnings ?? [],
-          },
-        }
-      : null;
+    if (parsed.version !== 1) return null;
+    const defaults = createEmptyWorkflow(sessionId);
+    const parsedConfig = recordValue(parsed.config);
+    return {
+      ...parsed,
+      config: {
+        ...defaults.config,
+        ...parsedConfig,
+        referenceMode: parsedConfig.referenceMode === "h3" ? "h3" : "standard",
+      },
+      storyboard: (Array.isArray(parsed.storyboard) ? parsed.storyboard : []).map((scene) => ({
+        ...scene,
+        referenceAssetIds: Array.isArray(scene.referenceAssetIds)
+          ? scene.referenceAssetIds.filter((item): item is string => typeof item === "string")
+          : [],
+      })),
+      contentRevision: parsed.contentRevision ?? 0,
+      submittedRevision: parsed.submittedRevision ?? 0,
+      scriptMode: parsed.scriptMode ?? defaults.scriptMode,
+      research: {
+        ...defaults.research,
+        ...parsed.research,
+        status: parsed.research?.status ?? (
+          parsed.research?.mode === "verified" ? "reference_unavailable" : "quick"
+        ),
+        sourceCount: parsed.research?.sourceCount ?? 0,
+        sources: parsed.research?.sources ?? [],
+        warnings: parsed.research?.warnings ?? [],
+      },
+    };
   } catch {
     return null;
   }

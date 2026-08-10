@@ -26,7 +26,7 @@ from military_video_gen.services.persistence import PersistenceService
 from military_video_gen.services.tts_service import TTSService
 from military_video_gen.services.video import VideoService
 from military_video_gen.services.video_analysis import VideoAnalysisService
-from military_video_gen.utils.safety import sanitize_error_message
+from military_video_gen.utils.safety import redact_url_for_log, sanitize_error_message
 
 
 class MilitaryVideoGenCore:
@@ -76,6 +76,7 @@ class MilitaryVideoGenCore:
         # ComfyKit lazy initialization (created on first use, recreated on config change)
         self._comfykit: Optional[ComfyKit] = None
         self._comfykit_config_hash: Optional[str] = None
+        self._comfykit_overrides: dict[str, ComfyKit] = {}
         
         # Core services (initialized in initialize())
         self.llm: Optional[LLMService] = None
@@ -93,7 +94,7 @@ class MilitaryVideoGenCore:
         # Default pipeline callable (for backward compatibility)
         self.generate_video = None
     
-    def _get_comfykit_config(self) -> dict:
+    def _get_comfykit_config(self, comfyui_url: Optional[str] = None) -> dict:
         """
         Get current ComfyKit configuration from config_manager
         
@@ -117,6 +118,8 @@ class MilitaryVideoGenCore:
         
         if comfyui_config.get("comfyui_url"):
             kit_config["comfyui_url"] = comfyui_config["comfyui_url"]
+        if comfyui_url:
+            kit_config["comfyui_url"] = comfyui_url
         if comfyui_config.get("comfyui_api_key"):
             kit_config["api_key"] = comfyui_config["comfyui_api_key"]
         if comfyui_config.get("runninghub_api_key"):
@@ -142,7 +145,7 @@ class MilitaryVideoGenCore:
         config_str = json.dumps(config, sort_keys=True)
         return hashlib.md5(config_str.encode()).hexdigest()
     
-    async def _get_or_create_comfykit(self) -> ComfyKit:
+    async def _get_or_create_comfykit(self, comfyui_url: Optional[str] = None) -> ComfyKit:
         """
         Get or create ComfyKit instance (lazy initialization with config change detection)
         
@@ -154,8 +157,19 @@ class MilitaryVideoGenCore:
         Returns:
             ComfyKit instance
         """
-        current_config = self._get_comfykit_config()
+        current_config = self._get_comfykit_config(comfyui_url=comfyui_url)
         current_hash = self._compute_comfykit_config_hash(current_config)
+
+        if comfyui_url:
+            kit = self._comfykit_overrides.get(current_hash)
+            if kit is None:
+                logger.info(
+                    "Creating dedicated ComfyKit instance for endpoint {}",
+                    redact_url_for_log(comfyui_url),
+                )
+                kit = ComfyKit(**current_config)
+                self._comfykit_overrides[current_hash] = kit
+            return kit
         
         # Check if we need to create or recreate ComfyKit
         if self._comfykit is None or self._comfykit_config_hash != current_hash:
@@ -249,6 +263,12 @@ class MilitaryVideoGenCore:
             finally:
                 self._comfykit = None
                 self._comfykit_config_hash = None
+        for kit in self._comfykit_overrides.values():
+            try:
+                await kit.close()
+            except Exception as e:
+                logger.warning(f"Failed to close dedicated ComfyKit: {sanitize_error_message(e)}")
+        self._comfykit_overrides.clear()
     
     async def __aenter__(self):
         """Async context manager entry"""

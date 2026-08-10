@@ -24,9 +24,19 @@ function workflowDraft(value: unknown): VideoWorkflowDraft | null {
   const candidate = recordValue(value);
   if (candidate.version !== 1 || typeof candidate.sourceText !== "string") return null;
   const draft = candidate as unknown as VideoWorkflowDraft;
+  const defaults = createEmptyWorkflow();
   const defaultResearch = createEmptyWorkflow().research;
   return discardRetiredStoryboard({
     ...draft,
+    config: {
+      ...defaults.config,
+      ...recordValue(draft.config),
+      referenceMode: recordValue(draft.config).referenceMode === "h3" ? "h3" : "standard",
+    },
+    storyboard: (Array.isArray(draft.storyboard) ? draft.storyboard : []).map((scene) => ({
+      ...scene,
+      referenceAssetIds: Array.isArray(scene.referenceAssetIds) ? scene.referenceAssetIds : [],
+    })),
     scriptMode: draft.scriptMode ?? createEmptyWorkflow().scriptMode,
     research: {
       ...defaultResearch,
@@ -92,6 +102,7 @@ export function restoreProjectWorkflow(
     sessionId: workspace.project.id,
     storyboard: draft.storyboard.map((scene) => ({
       ...scene,
+      referenceAssetIds: scene.referenceAssetIds ?? [],
       estimatedDuration: scene.estimatedDuration > 1
         ? scene.estimatedDuration
         : estimateNarrationDuration(scene.narration),

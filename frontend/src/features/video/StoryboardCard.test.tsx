@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { StoryboardCard } from "@/features/video/StoryboardCard";
 import type { EditableStoryboardScene } from "@/features/video/workflow";
 
-const scene: EditableStoryboardScene = { id: "scene-0", index: 0, narration: "解说内容", visualDescription: "雷达阵列画面", mediaPrompt: "cinematic radar", estimatedDuration: 6, assetType: "video", status: "draft" };
+const scene: EditableStoryboardScene = { id: "scene-0", index: 0, narration: "解说内容", visualDescription: "雷达阵列画面", mediaPrompt: "cinematic radar", estimatedDuration: 6, assetType: "video", status: "draft", referenceAssetIds: [] };
 
 describe("storyboard card", () => {
   it("shows only the English generation prompt and keeps legacy fields synchronized", () => {

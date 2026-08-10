@@ -49,6 +49,19 @@ comfyui:
   # Note for Docker users: Use host.docker.internal:8188 (Mac/Windows) or host IP address (Linux)
   runninghub_api_key: ""  # RunningHub API key (required for runninghub workflows)
   runninghub_concurrent_limit: 1  # Concurrent execution limit for RunningHub (1-10, default 1 for regular members)
+
+  # MiniMax H3 reference-to-video. Leave comfyui_url empty to reuse the global endpoint.
+  h3_reference:
+    enabled: true
+    comfyui_url: ""
+    workflow: selfhost/video_minimax_h3_reference.json
+    max_reference_images: 4
+    # Optional overrides when the H3 installation uses alternate filenames.
+    diffusion_model: ""
+    text_encoder: ""
+    # H3 generation resolution; composition templates may use a different canvas size.
+    width: 1344
+    height: 768
   
   # TTS-specific configuration
   tts:

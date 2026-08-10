@@ -9,6 +9,7 @@ import type {
   ProjectUpdate,
   ProjectWorkspace,
 } from "@/types/projects";
+import type { ReferenceAsset } from "@/types/api";
 
 export function createProject(payload: ProjectCreate) {
   return apiClient.post<Project, ProjectCreate>("/api/projects", payload);
@@ -27,6 +28,27 @@ export function deleteProject(projectId: string) {
 
 export function getProject(projectId: string) {
   return apiClient.get<Project>(`/api/projects/${encodeURIComponent(projectId)}`);
+}
+
+export function getReferenceAssets(projectId: string) {
+  return apiClient.get<ReferenceAsset[]>(
+    `/api/projects/${encodeURIComponent(projectId)}/reference-assets`,
+  );
+}
+
+export function uploadReferenceAsset(projectId: string, file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return apiClient.postForm<ReferenceAsset>(
+    `/api/projects/${encodeURIComponent(projectId)}/reference-assets`,
+    form,
+  );
+}
+
+export function deleteReferenceAsset(projectId: string, assetId: string) {
+  return apiClient.delete<void>(
+    `/api/projects/${encodeURIComponent(projectId)}/reference-assets/${encodeURIComponent(assetId)}`,
+  );
 }
 
 async function compatibleSessions(): Promise<SessionListResponse> {
@@ -74,5 +96,12 @@ export const projectQueries = {
       queryFn: () => getProjectWorkspace(projectId as string),
       enabled: Boolean(projectId),
       staleTime: 5_000,
+    }),
+  referenceAssets: (projectId: string | null) =>
+    queryOptions({
+      queryKey: ["project", projectId, "reference-assets"],
+      queryFn: () => getReferenceAssets(projectId as string),
+      enabled: Boolean(projectId),
+      staleTime: 30_000,
     }),
 };

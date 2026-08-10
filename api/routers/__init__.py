@@ -11,6 +11,7 @@ from api.routers.image import router as image_router
 from api.routers.jobs import router as jobs_router
 from api.routers.llm import router as llm_router
 from api.routers.projects import router as projects_router
+from api.routers.reference_assets import router as reference_assets_router
 from api.routers.research import router as research_router
 from api.routers.resources import router as resources_router
 from api.routers.tasks import router as tasks_router
@@ -30,6 +31,7 @@ __all__ = [
     "frame_router",
     "history_router",
     "projects_router",
+    "reference_assets_router",
     "jobs_router",
     "research_router",
 ]

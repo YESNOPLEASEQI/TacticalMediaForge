@@ -34,6 +34,27 @@ def normalize_video_duration(audio_duration: float) -> int:
     return max(1, math.ceil(audio_duration))
 
 
+def normalize_h3_video_duration(audio_duration: float) -> int:
+    """Clamp H3 reference-to-video duration to the supported 5-15 second range."""
+    return max(5, min(15, math.ceil(audio_duration)))
+
+
+def build_h3_reference_prompt(media_prompt: str, reference_count: int) -> str:
+    """Build the fixed, tag-aware prompt contract for MiniMax H3 ref2va."""
+    references = "\n".join(
+        f"<Picture {index}>: equipment appearance and structural identity reference {index}."
+        for index in range(1, reference_count + 1)
+    )
+    return (
+        "Use the following reference images only to preserve the military equipment's identity, "
+        "silhouette, proportions, surface materials, markings, and visible configuration. "
+        "They are visual identity and structure references, not first frames. Do not reproduce "
+        "a reference image as a static opening frame. Keep all references consistent with the shot.\n\n"
+        f"REFERENCE MAPPING:\n{references or 'No reference image supplied; follow the shot description only.'}\n\n"
+        f"SHOT:\n{media_prompt.strip()}"
+    )
+
+
 def wan_video_frame_count(duration_seconds: int, fps: int = 16) -> int:
     """Return a Wan-compatible 4n+1 frame count covering the target duration."""
     return max(1, duration_seconds) * fps + 1
@@ -254,11 +275,22 @@ class FrameProcessor:
         # video_ prefix in workflow name indicates ComfyUI video generation;
         # video_* templates can also use direct API video workflows.
         workflow_name = config.media_workflow or ""
+        is_h3_reference = config.reference_mode == "h3"
         from military_video_gen.utils.template_util import get_template_type
 
         template_type = get_template_type(config.frame_template or "")
         is_video_workflow = "video_" in workflow_name.lower() or template_type == "video"
         media_type = "video" if is_video_workflow else "image"
+
+        media_width = config.media_width
+        media_height = config.media_height
+        if is_h3_reference:
+            # H3's generation canvas is independent from the HTML composition
+            # canvas. The default portrait template must not turn H3 into an
+            # unsupported 1080x1920 generation request.
+            h3_config = (self.core.config.get("comfyui") or {}).get("h3_reference") or {}
+            media_width = int(h3_config.get("width") or 1344)
+            media_height = int(h3_config.get("height") or 768)
 
         logger.debug(f"  → Media type: {media_type} (workflow: {workflow_name})")
 
@@ -271,15 +303,23 @@ class FrameProcessor:
             await self._prepare_api_video_inputs(frame, config, api_video_params)
 
         media_params = {
-            "prompt": frame.image_prompt,
+            "prompt": build_h3_reference_prompt(
+                frame.image_prompt or "", len(frame.reference_image_paths)
+            )
+            if is_h3_reference
+            else frame.image_prompt,
             "workflow": config.media_workflow,  # Pass workflow from config (None = use default)
             "media_type": media_type,
-            "width": config.media_width,
-            "height": config.media_height,
+            "width": media_width,
+            "height": media_height,
             "output_path": output_path,
-            "image_path": frame.image_path,
+            "image_path": None if is_h3_reference else frame.image_path,
             "index": frame.index + 1,  # 1-based index for workflow
         }
+        if is_h3_reference:
+            media_params["reference_image_paths"] = list(frame.reference_image_paths)
+            if config.reference_comfyui_url:
+                media_params["comfyui_url"] = config.reference_comfyui_url
         media_params.update(api_video_params)
         if media_type == "video":
             media_params["seed"] = derive_video_seed(
@@ -291,7 +331,11 @@ class FrameProcessor:
         # For video workflows: pass audio duration as target video duration
         # This ensures video length matches audio length from the source
         if is_video_workflow and frame.duration:
-            target_duration = normalize_video_duration(frame.duration)
+            target_duration = (
+                normalize_h3_video_duration(frame.duration)
+                if is_h3_reference
+                else normalize_video_duration(frame.duration)
+            )
             media_params["duration"] = target_duration
             if workflow_name.replace("\\", "/").endswith("selfhost/video_wan2.1_fusionx.json"):
                 media_params["video_length"] = wan_video_frame_count(target_duration)
@@ -313,6 +357,7 @@ class FrameProcessor:
                 frame.index,
                 config.task_id,
                 media_type="image",
+                comfyui_url=config.reference_comfyui_url if is_h3_reference else None,
                 progress_callback=progress_callback,
                 total_frames=total_frames,
             )
@@ -326,25 +371,18 @@ class FrameProcessor:
                 frame.index,
                 config.task_id,
                 media_type="video",
+                comfyui_url=config.reference_comfyui_url if is_h3_reference else None,
                 progress_callback=progress_callback,
                 total_frames=total_frames,
             )
             frame.video_path = local_path
 
-            # Update duration from video if available
-            if media_result.duration:
-                frame.duration = media_result.duration
-                logger.debug(
-                    f"  ✓ Video generated: {redact_path_for_log(local_path)} "
-                    f"(duration: {frame.duration:.2f}s)"
-                )
-            else:
-                # Get video duration from file
-                frame.duration = await self._get_video_duration(local_path)
-                logger.debug(
-                    f"  ✓ Video generated: {redact_path_for_log(local_path)} "
-                    f"(duration: {frame.duration:.2f}s)"
-                )
+            # Probe the downloaded file because provider metadata can be inaccurate.
+            frame.duration = await self._get_video_duration(local_path)
+            logger.debug(
+                f"  ✓ Video generated: {redact_path_for_log(local_path)} "
+                f"(duration: {frame.duration:.2f}s)"
+            )
 
         else:
             raise ValueError(f"Unknown media type: {media_result.media_type}")
@@ -605,6 +643,7 @@ class FrameProcessor:
         frame_index: int,
         task_id: str,
         media_type: str,
+        comfyui_url: Optional[str] = None,
         progress_callback: Optional[Callable[[ProgressEvent], None]] = None,
         total_frames: int = 1,
     ) -> str:
@@ -640,7 +679,7 @@ class FrameProcessor:
         if is_comfy_view_url:
             from urllib.parse import urlsplit
 
-            configured = (self.core.config.get("comfyui") or {}).get("comfyui_url")
+            configured = comfyui_url or (self.core.config.get("comfyui") or {}).get("comfyui_url")
             target = urlsplit(url)
             expected = urlsplit(configured or "")
             if not configured or (target.hostname, target.port) != (

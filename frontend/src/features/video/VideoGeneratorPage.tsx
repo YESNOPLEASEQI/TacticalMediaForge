@@ -1,13 +1,13 @@
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FolderKanban, RefreshCw } from "lucide-react";
-import { projectQueries, updateProject } from "@/api/projects";
+import { deleteReferenceAsset, projectQueries, updateProject, uploadReferenceAsset } from "@/api/projects";
 import { resourceQueries } from "@/api/resources";
 import { OperationsShell, WorkbenchHeader } from "@/components/operations/OperationsShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import type { Task, TaskStatus } from "@/types/api";
+import type { ReferenceAsset, Task, TaskStatus } from "@/types/api";
 import type { SessionDetail } from "@/types/history";
 import { LLMModelSummary } from "@/features/settings/LLMModelSummary";
 import { ResourceNotice } from "@/features/video/ResourceNotice";
@@ -209,6 +209,15 @@ export function VideoGeneratorPage({
     enabled: healthQuery.isSuccess,
   });
   const projectQuery = useQuery(projectQueries.workspace(projectId));
+  const referenceAssetsQuery = useQuery(projectQueries.referenceAssets(projectId));
+  const uploadReferenceMutation = useMutation({
+    mutationFn: (file: File) => uploadReferenceAsset(projectId, file),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["project", projectId, "reference-assets"] }),
+  });
+  const deleteReferenceMutation = useMutation({
+    mutationFn: (assetId: string) => deleteReferenceAsset(projectId, assetId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["project", projectId, "reference-assets"] }),
+  });
   const projectJobs = jobsForProject(projectId);
   const latestVideoJob = projectJobs.find((job) => videoJobMatchesDraft(job, draft));
   const hasCompletedVideo = latestVideoJob?.status === "completed";
@@ -622,6 +631,7 @@ export function VideoGeneratorPage({
 
       {draft.stage === "storyboard" ? (
         <StoryboardStage
+          projectId={projectId}
           disabled={workflowBusy}
           isGenerating={storyboardMutation.isPending || researchMutation.isPending || Boolean(activeStoryboardJob) || Boolean(activeResearchJob)}
           onChange={(storyboard) =>
@@ -646,6 +656,23 @@ export function VideoGeneratorPage({
             },
             storyboardConfirmed: false,
           })}
+          onReferenceModeChange={(referenceMode) => patchContent({
+            config: { ...draft.config, referenceMode },
+            storyboardConfirmed: false,
+          })}
+          referenceMode={draft.config.referenceMode ?? "standard"}
+          referenceAssets={(referenceAssetsQuery.data ?? []) as ReferenceAsset[]}
+          referenceAssetsError={
+            uploadReferenceMutation.error instanceof Error
+              ? uploadReferenceMutation.error.message
+              : deleteReferenceMutation.error instanceof Error
+                ? deleteReferenceMutation.error.message
+                : undefined
+          }
+          referenceAssetsLoading={referenceAssetsQuery.isLoading}
+          referenceAssetsUploading={uploadReferenceMutation.isPending}
+          onDeleteReference={(assetId) => deleteReferenceMutation.mutate(assetId)}
+          onUploadReference={(file) => uploadReferenceMutation.mutate(file)}
           research={activeResearchJob
             ? { ...draft.research, status: "researching" }
             : draft.research}

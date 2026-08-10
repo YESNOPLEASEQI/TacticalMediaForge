@@ -46,6 +46,16 @@ class ConfirmedStoryboardScene(BaseModel):
     verification_status: VerificationStatus = VerificationStatus.UNVERIFIED
     negative_constraints: List[str] = Field(default_factory=list)
     warnings: List[str] = Field(default_factory=list)
+    reference_asset_ids: List[str] = Field(default_factory=list, max_length=4)
+
+    @field_validator("reference_asset_ids")
+    @classmethod
+    def validate_reference_asset_ids(cls, value: List[str]) -> List[str]:
+        if len(value) != len(set(value)):
+            raise ValueError("reference_asset_ids must not contain duplicates")
+        if any(not item.strip() for item in value):
+            raise ValueError("reference_asset_ids must contain non-empty IDs")
+        return value
 
     @field_validator("narration", "visual_description", "media_prompt")
     @classmethod
@@ -113,6 +123,7 @@ class VideoGenerateRequest(BaseModel):
         ge=0,
         description="Client draft revision used to bind a video job to the exact storyboard/config submitted.",
     )
+    reference_mode: Literal["standard", "h3"] = "standard"
     
     # === Processing Mode ===
     mode: Literal["generate", "fixed"] = Field(

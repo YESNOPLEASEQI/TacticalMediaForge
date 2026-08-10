@@ -53,6 +53,7 @@ export interface HistoryScene {
   verification_status?: import("@/types/api").VerificationStatus;
   negative_constraints?: string[];
   warnings?: string[];
+  reference_asset_ids?: string[];
 }
 
 export interface GenerationJob {

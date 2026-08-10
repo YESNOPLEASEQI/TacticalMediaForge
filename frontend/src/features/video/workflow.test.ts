@@ -201,6 +201,18 @@ describe("video workflow state", () => {
     expect(request.workflow_revision).toBe(0);
   });
 
+  it("sends H3 mode and reference IDs without using the standard workflow", () => {
+    const draft = confirmedDraft();
+    draft.config.referenceMode = "h3";
+    draft.storyboard[0].referenceAssetIds = ["asset-a", "asset-b"];
+
+    const request = buildVideoRequest(draft);
+
+    expect(request.reference_mode).toBe("h3");
+    expect(request.media_workflow).toBeNull();
+    expect(request.confirmed_storyboard?.[0].reference_asset_ids).toEqual(["asset-a", "asset-b"]);
+  });
+
   it("guards later stages until their inputs are confirmed", () => {
     const draft = confirmedDraft();
 

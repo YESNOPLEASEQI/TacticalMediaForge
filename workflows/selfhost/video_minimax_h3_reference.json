@@ -1,0 +1,161 @@
+{
+  "save": {
+    "inputs": {
+      "filename_prefix": "video/MiniMax_H3",
+      "format": "auto",
+      "codec": "auto",
+      "video": ["create_video", 0]
+    },
+    "class_type": "SaveVideo",
+    "_meta": {"title": "Save H3 video"}
+  },
+  "video_vae": {
+    "inputs": {"vae_name": "minimax_h3_video_vae_fp16.safetensors"},
+    "class_type": "VAELoader",
+    "_meta": {"title": "Load H3 video VAE"}
+  },
+  "audio_vae": {
+    "inputs": {"vae_name": "minimax_h3_audio_vae_fp32.safetensors"},
+    "class_type": "VAELoader",
+    "_meta": {"title": "Load H3 audio VAE"}
+  },
+  "unet": {
+    "inputs": {
+      "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {"title": "$h3_unet.unet_name"}
+  },
+  "clip": {
+    "inputs": {
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "type": "minimax",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {"title": "$h3_clip.clip_name"}
+  },
+  "duration": {
+    "inputs": {"value": 5.0},
+    "class_type": "PrimitiveFloat",
+    "_meta": {"title": "$duration.value"}
+  },
+  "length": {
+    "inputs": {
+      "expression": "max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17",
+      "values.a": ["duration", 0]
+    },
+    "class_type": "ComfyMathExpression",
+    "_meta": {"title": "H3 frame length"}
+  },
+  "width": {
+    "inputs": {"value": 1344},
+    "class_type": "PrimitiveInt",
+    "_meta": {"title": "$width.value"}
+  },
+  "height": {
+    "inputs": {"value": 768},
+    "class_type": "PrimitiveInt",
+    "_meta": {"title": "$height.value"}
+  },
+  "prompt": {
+    "inputs": {"value": ""},
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {"title": "$prompt.value!"}
+  },
+  "reference_image_0": {
+    "inputs": {"image": "reference_image_0.png"},
+    "class_type": "LoadImage",
+    "_meta": {"title": "$~reference_image_0.image!"}
+  },
+  "reference_image_1": {
+    "inputs": {"image": "reference_image_1.png"},
+    "class_type": "LoadImage",
+    "_meta": {"title": "$~reference_image_1.image!"}
+  },
+  "reference_image_2": {
+    "inputs": {"image": "reference_image_2.png"},
+    "class_type": "LoadImage",
+    "_meta": {"title": "$~reference_image_2.image!"}
+  },
+  "reference_image_3": {
+    "inputs": {"image": "reference_image_3.png"},
+    "class_type": "LoadImage",
+    "_meta": {"title": "$~reference_image_3.image!"}
+  },
+  "h3": {
+    "inputs": {
+      "clip": ["clip", 0],
+      "vae": ["video_vae", 0],
+      "audio_vae": ["audio_vae", 0],
+      "prompt": ["prompt", 0],
+      "width": ["width", 0],
+      "height": ["height", 0],
+      "length": ["length", 1],
+      "ref_image_size": "match",
+      "ref_images.ref_image_0": ["reference_image_0", 0],
+      "ref_images.ref_image_1": ["reference_image_1", 0],
+      "ref_images.ref_image_2": ["reference_image_2", 0],
+      "ref_images.ref_image_3": ["reference_image_3", 0]
+    },
+    "class_type": "MiniMaxH3ReferenceToVideo",
+    "_meta": {"title": "MiniMax H3 reference-to-video"}
+  },
+  "noise": {
+    "inputs": {"noise_seed": 42},
+    "class_type": "RandomNoise",
+    "_meta": {"title": "$seed.noise_seed"}
+  },
+  "sampler": {
+    "inputs": {"sampler_name": "res_multistep"},
+    "class_type": "KSamplerSelect",
+    "_meta": {"title": "H3 sampler"}
+  },
+  "scheduler": {
+    "inputs": {
+      "scheduler": "simple",
+      "steps": 20,
+      "denoise": 1.0,
+      "model": ["unet", 0]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {"title": "H3 scheduler"}
+  },
+  "guider": {
+    "inputs": {"model": ["unet", 0], "conditioning": ["h3", 0]},
+    "class_type": "BasicGuider",
+    "_meta": {"title": "H3 guider"}
+  },
+  "sample": {
+    "inputs": {
+      "noise": ["noise", 0],
+      "guider": ["guider", 0],
+      "sampler": ["sampler", 0],
+      "sigmas": ["scheduler", 0],
+      "latent_image": ["h3", 1]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {"title": "H3 sampler advanced"}
+  },
+  "decode_video": {
+    "inputs": {"samples": ["sample", 0], "vae": ["video_vae", 0]},
+    "class_type": "VAEDecode",
+    "_meta": {"title": "Decode H3 video"}
+  },
+  "decode_audio": {
+    "inputs": {"samples": ["sample", 0], "vae": ["audio_vae", 0]},
+    "class_type": "VAEDecodeAudio",
+    "_meta": {"title": "Decode H3 audio"}
+  },
+  "create_video": {
+    "inputs": {
+      "images": ["decode_video", 0],
+      "audio": ["decode_audio", 0],
+      "fps": 24,
+      "bit_depth": 8
+    },
+    "class_type": "CreateVideo",
+    "_meta": {"title": "Create H3 video"}
+  }
+}

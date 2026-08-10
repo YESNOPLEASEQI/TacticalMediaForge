@@ -79,6 +79,20 @@ export interface ConfirmedStoryboardScene {
   verification_status?: VerificationStatus;
   negative_constraints?: string[];
   warnings?: string[];
+  reference_asset_ids?: string[];
+}
+
+export interface ReferenceAsset {
+  id: string;
+  project_id: string;
+  filename: string;
+  mime_type: string;
+  size_bytes: number;
+  width: number;
+  height: number;
+  metadata_json: Record<string, unknown>;
+  url: string;
+  created_at: string;
 }
 
 export interface VideoGenerateRequest {
@@ -104,6 +118,7 @@ export interface VideoGenerateRequest {
   prompt_prefix?: string | null;
   bgm_path?: string | null;
   bgm_volume: number;
+  reference_mode?: "standard" | "h3";
 }
 
 export interface VideoGenerateAsyncResponse {

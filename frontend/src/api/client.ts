@@ -71,6 +71,24 @@ export const apiClient = {
     return payload as TResponse;
   },
 
+  async postForm<TResponse>(path: string, body: FormData): Promise<TResponse> {
+    const response = await fetch(`${apiBaseUrl}${path}`, {
+      method: "POST",
+      body,
+    });
+    const payload = await parseResponse(response);
+
+    if (!response.ok) {
+      throw new ApiError(
+        errorMessageFromPayload(payload, `Request failed with ${response.status}`),
+        response.status,
+        payload,
+      );
+    }
+
+    return payload as TResponse;
+  },
+
   async put<TResponse, TBody>(path: string, body: TBody): Promise<TResponse> {
     const response = await fetch(`${apiBaseUrl}${path}`, {
       method: "PUT",

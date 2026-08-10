@@ -4,6 +4,7 @@ import { SectionPanel } from "@/components/operations/OperationsShell";
 import { SpotlightCard } from "@/components/react-bits/SpotlightCard";
 import { Button } from "@/components/ui/button";
 import { ResearchModeSelector } from "@/features/video/ResearchModeSelector";
+import { ReferenceAssetLibrary } from "@/features/video/ReferenceAssetLibrary";
 import { StoryboardCard } from "@/features/video/StoryboardCard";
 import type {
   EditableStoryboardScene,
@@ -17,8 +18,11 @@ import {
 import { researchWarningLabel } from "@/features/video/researchWarnings";
 import { gsap, useGSAP } from "@/lib/gsap";
 import { newIds } from "@/lib/motionState";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { ReferenceAsset } from "@/types/api";
 
 interface StoryboardStageProps {
+  projectId?: string;
   scenes: EditableStoryboardScene[];
   disabled: boolean;
   isGenerating: boolean;
@@ -28,9 +32,18 @@ interface StoryboardStageProps {
   research: WorkflowResearchState;
   researchCapabilityEnabled: boolean;
   onModeChange: (mode: "verified" | "quick") => void;
+  referenceMode?: "standard" | "h3";
+  onReferenceModeChange?: (mode: "standard" | "h3") => void;
+  referenceAssets?: ReferenceAsset[];
+  referenceAssetsLoading?: boolean;
+  referenceAssetsUploading?: boolean;
+  referenceAssetsError?: string;
+  onUploadReference?: (file: File) => void;
+  onDeleteReference?: (assetId: string) => void;
 }
 
 export function StoryboardStage({
+  projectId,
   scenes,
   disabled,
   isGenerating,
@@ -40,14 +53,24 @@ export function StoryboardStage({
   research,
   researchCapabilityEnabled,
   onModeChange,
+  referenceMode = "standard",
+  onReferenceModeChange,
+  referenceAssets: referenceAssetsProp = [],
+  referenceAssetsLoading = false,
+  referenceAssetsUploading = false,
+  referenceAssetsError,
+  onUploadReference,
+  onDeleteReference,
 }: StoryboardStageProps) {
   const stageRef = React.useRef<HTMLDivElement>(null);
   const seenSceneIds = React.useRef(new Set<string>());
   const hasDuplicatePrompts = hasDuplicateStoryboardPrompts(scenes);
+  const referenceAssets = referenceAssetsProp;
   const complete = scenes.length > 0 && !hasDuplicatePrompts && scenes.every(
     (scene) => (
       scene.narration.trim() &&
       scene.mediaPrompt.trim() &&
+      (scene.referenceAssetIds?.length ?? 0) <= 4 &&
       !containsCjk(scene.mediaPrompt) &&
       !isUnanchoredStoryboardPrompt(scene.mediaPrompt)
     ),
@@ -56,6 +79,7 @@ export function StoryboardStage({
     (scene) => isUnanchoredStoryboardPrompt(scene.mediaPrompt),
   );
   const sceneKey = scenes.map((scene) => scene.id).join("|");
+  const assetKey = referenceAssets.map((asset) => asset.id).join("|");
   const referenceMessage = research.status === "researching"
     ? "正在获取联网参考并生成分镜…"
     : research.status === "reference_unavailable" && Boolean(research.activeJobId) && research.warnings.length > 0
@@ -84,6 +108,17 @@ export function StoryboardStage({
     );
   }, { scope: stageRef, dependencies: [sceneKey], revertOnUpdate: true });
 
+  React.useEffect(() => {
+    const available = new Set(referenceAssets.map((asset) => asset.id));
+    const sanitized = scenes.map((scene) => {
+      const nextIds = (scene.referenceAssetIds ?? []).filter((id) => available.has(id));
+      return nextIds.length === (scene.referenceAssetIds ?? []).length
+        ? scene
+        : { ...scene, referenceAssetIds: nextIds };
+    });
+    if (sanitized.some((scene, index) => scene !== scenes[index])) onChange(sanitized);
+  }, [assetKey, onChange, referenceAssets, scenes]);
+
   return (
     <div ref={stageRef}>
       <SpotlightCard>
@@ -97,6 +132,26 @@ export function StoryboardStage({
               disabled={disabled}
               mode={research.mode}
               onChange={onModeChange}
+            />
+            <div className="ops-panel-muted space-y-2 p-3">
+              <label className="control-label" htmlFor="reference-mode">Media generation mode</label>
+              <Select disabled={disabled} value={referenceMode} onValueChange={(value: "standard" | "h3") => onReferenceModeChange?.(value)}>
+                <SelectTrigger id="reference-mode"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="standard">Standard LTX video</SelectItem>
+                  <SelectItem value="h3">MiniMax H3 visual references</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">H3 uses bound images as equipment identity/structure references; they are not first-frame conditioning.</p>
+            </div>
+            <ReferenceAssetLibrary
+              assets={referenceAssets}
+              disabled={disabled}
+              isLoading={referenceAssetsLoading}
+              isUploading={referenceAssetsUploading}
+              onDelete={(assetId) => onDeleteReference?.(assetId)}
+              onUpload={(file) => onUploadReference?.(file)}
+              uploadError={referenceAssetsError}
             />
             {referenceMessage ? (
               <div className="rounded-md border border-border/70 bg-background/35 px-3 py-2 text-sm text-muted-foreground">
@@ -141,6 +196,7 @@ export function StoryboardStage({
                       displayIndex={index}
                       key={scene.id}
                       onChange={(next) => onChange(scenes.map((item, position) => position === index ? next : item))}
+                      referenceAssets={referenceAssets}
                       scene={scene}
                     />
                   ))}

@@ -37,6 +37,8 @@ class StoryboardConfig:
     # Media workflow
     media_workflow: Optional[str] = None       # Media workflow filename (image or video, None = use default)
     api_video_params: Optional[Dict[str, Any]] = None  # Extra direct API video generation parameters
+    reference_mode: str = "standard"          # "standard" or "h3"
+    reference_comfyui_url: Optional[str] = None  # Dedicated H3 endpoint, if configured
     
     # Frame template (includes size information in path)
     frame_template: str = "1080x1920/default.html"  # Template path with size (e.g., "1080x1920/default.html")
@@ -52,6 +54,7 @@ class StoryboardFrame:
     visual_description: Optional[str] = None   # User-facing visual intent
     estimated_duration: float = 0.0            # User-reviewed duration estimate
     research_metadata: Dict[str, Any] = field(default_factory=dict)
+    reference_image_paths: List[str] = field(default_factory=list, repr=False)
     
     # Generated resource paths
     audio_path: Optional[str] = None           # Audio file path (narration)

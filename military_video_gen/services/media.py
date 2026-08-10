@@ -5,13 +5,17 @@ Supports both image and video generation workflows.
 Automatically detects output type based on ExecuteResult.
 """
 
+import json
+from pathlib import Path
 from typing import Optional
+from uuid import uuid4
 
 from loguru import logger
 
 from military_video_gen.models.media import MediaResult
 from military_video_gen.services.comfy_base_service import ComfyBaseService
 from military_video_gen.utils.async_utils import run_async_until_stopped
+from military_video_gen.utils.os_util import get_temp_path
 from military_video_gen.utils.safety import (
     redact_path_for_log,
     redact_url_for_log,
@@ -50,6 +54,37 @@ class MediaService(ComfyBaseService):
     WORKFLOW_PREFIX = ""  # Will be overridden by _scan_workflows
     DEFAULT_WORKFLOW = None  # No hardcoded default, must be configured
     WORKFLOWS_DIR = "workflows"
+
+    @staticmethod
+    def _prepare_h3_reference_workflow(
+        workflow_path: str, reference_image_paths: list[str]
+    ) -> Path:
+        """Create an execution-only H3 graph containing the selected references."""
+        source_path = Path(workflow_path)
+        workflow = json.loads(source_path.read_text(encoding="utf-8"))
+        h3_node = next(
+            node
+            for node in workflow.values()
+            if node.get("class_type") == "MiniMaxH3ReferenceToVideo"
+        )
+        max_references = 4
+        if len(reference_image_paths) > max_references:
+            raise ValueError(f"MiniMax H3 supports at most {max_references} reference images")
+
+        for index in range(max_references):
+            load_node_id = f"reference_image_{index}"
+            input_name = f"ref_images.ref_image_{index}"
+            if index < len(reference_image_paths):
+                h3_node["inputs"][input_name] = [load_node_id, 0]
+            else:
+                h3_node["inputs"].pop(input_name, None)
+                workflow.pop(load_node_id, None)
+
+        output_dir = Path(get_temp_path("h3_workflows"))
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_dir / f"h3_reference_{uuid4().hex}.json"
+        output_path.write_text(json.dumps(workflow, ensure_ascii=False, indent=2), encoding="utf-8")
+        return output_path
     
     def __init__(self, config: dict, core=None):
         """
@@ -134,6 +169,7 @@ class MediaService(ComfyBaseService):
         duration: Optional[float] = None,  # Video duration in seconds (for video workflows)
         output_path: Optional[str] = None,
         image_path: Optional[str] = None,
+        reference_image_paths: Optional[list[str]] = None,
         negative_prompt: Optional[str] = None,
         steps: Optional[int] = None,
         seed: Optional[int] = None,
@@ -234,6 +270,16 @@ class MediaService(ComfyBaseService):
 
         # 1. Resolve workflow (returns structured info)
         workflow_info = self._resolve_workflow(workflow=workflow)
+        temporary_workflow_path: Optional[Path] = None
+        is_h3_reference_workflow = (
+            workflow_info["name"] == "video_minimax_h3_reference.json"
+            and workflow_info["source"] == "selfhost"
+        )
+        if is_h3_reference_workflow:
+            temporary_workflow_path = self._prepare_h3_reference_workflow(
+                workflow_info.get("_internal_path", workflow_info["path"]),
+                list(reference_image_paths or []),
+            )
         
         # 2. Build workflow parameters (ComfyKit config is now managed by core)
         workflow_params = {"prompt": prompt}
@@ -260,13 +306,24 @@ class MediaService(ComfyBaseService):
         
         # Add any additional parameters
         workflow_params.update(params)
+        if is_h3_reference_workflow:
+            for index, path in enumerate(reference_image_paths or []):
+                workflow_params[f"reference_image_{index}"] = path
+            h3_config = self.global_config.get("h3_reference") or {}
+            if h3_config.get("diffusion_model"):
+                workflow_params["h3_unet"] = h3_config["diffusion_model"]
+            if h3_config.get("text_encoder"):
+                workflow_params["h3_clip"] = h3_config["text_encoder"]
         
         logger.debug(f"Workflow parameters: {workflow_params}")
         
         # 4. Execute workflow using shared ComfyKit instance from core
         try:
             # Get shared ComfyKit instance (lazy initialization + config hot-reload)
-            kit = await self.core._get_or_create_comfykit()
+            if comfyui_url:
+                kit = await self.core._get_or_create_comfykit(comfyui_url=comfyui_url)
+            else:
+                kit = await self.core._get_or_create_comfykit()
             
             # Determine what to pass to ComfyKit based on source
             if workflow_info["source"] == "runninghub" and "workflow_id" in workflow_info:
@@ -275,7 +332,11 @@ class MediaService(ComfyBaseService):
                 logger.info(f"Executing RunningHub workflow: {workflow_input}")
             else:
                 # Selfhost: pass file path (ComfyKit will use local ComfyUI)
-                workflow_input = workflow_info.get("_internal_path", workflow_info["path"])
+                workflow_input = (
+                    str(temporary_workflow_path)
+                    if temporary_workflow_path
+                    else workflow_info.get("_internal_path", workflow_info["path"])
+                )
                 logger.info(
                     f"Executing selfhost workflow: {redact_path_for_log(workflow_input)}"
                 )
@@ -329,3 +390,6 @@ class MediaService(ComfyBaseService):
         except Exception as e:
             logger.error(f"Media generation error: {sanitize_error_message(e)}")
             raise
+        finally:
+            if temporary_workflow_path:
+                temporary_workflow_path.unlink(missing_ok=True)
