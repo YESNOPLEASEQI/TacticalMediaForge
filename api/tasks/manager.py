@@ -155,6 +155,7 @@ class TaskManager:
         task_id: str,
         coro_func: Callable,
         *args,
+        timeout_seconds: float | None = None,
         **kwargs
     ):
         """
@@ -172,11 +173,13 @@ class TaskManager:
             return
         
         # Create async task
+        deadline = timeout_seconds or self._task_timeout_seconds
+
         async def _execute():
             try:
                 # The deadline begins as soon as background execution starts,
                 # including runtime sync and semaphore queue time.
-                async with asyncio.timeout(self._task_timeout_seconds):
+                async with asyncio.timeout(deadline):
                     task.status = TaskStatus.RUNNING
                     task.started_at = datetime.now()
                     await self._sync_runtime_job(task)
@@ -210,7 +213,7 @@ class TaskManager:
                 raise
             except TimeoutError:
                 task.status = TaskStatus.FAILED
-                task.error = f"Task timed out after {self._task_timeout_seconds:g} seconds"
+                task.error = f"Task timed out after {deadline:g} seconds"
                 task.completed_at = datetime.now()
                 await self._sync_runtime_job(task)
                 logger.error(f"Task {task_id} timed out")

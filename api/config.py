@@ -25,6 +25,9 @@ class APIConfig(BaseModel):
     # Task settings
     max_concurrent_tasks: int = 5
     task_timeout_seconds: float = 3600
+    # BF16 MiniMax H3 runs one remote inference per scene. A five-scene
+    # production run can legitimately exceed the generic one-hour bound.
+    h3_task_timeout_seconds: float = 7200
     task_cleanup_interval: int = 3600  # Clean completed tasks every hour
     task_retention_time: int = 86400   # Keep task results for 24 hours
     

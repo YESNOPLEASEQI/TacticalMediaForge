@@ -13,6 +13,7 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.config import api_config
 from api.dependencies import MilitaryVideoGenDep
 from api.errors import internal_server_error
 from api.public_paths import to_public_file_url
@@ -416,7 +417,12 @@ async def generate_video_async(
         # Start execution
         await task_manager.execute_task(
             task_id=task.task_id,
-            coro_func=execute_video_generation
+            coro_func=execute_video_generation,
+            timeout_seconds=(
+                api_config.h3_task_timeout_seconds
+                if request_body.reference_mode == "h3"
+                else None
+            ),
         )
         
         return VideoGenerateAsyncResponse(
