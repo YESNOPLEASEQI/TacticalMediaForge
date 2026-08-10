@@ -56,9 +56,9 @@ comfyui:
     comfyui_url: ""
     workflow: selfhost/video_minimax_h3_reference.json
     max_reference_images: 4
-    # Optional overrides when the H3 installation uses alternate filenames.
-    diffusion_model: ""
-    text_encoder: ""
+    # Quantized profile recommended for practical latency on an L40.
+    diffusion_model: minimax_h3_ref2va_pruned_int8_convrot.safetensors
+    text_encoder: qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors
     # H3 generation resolution; composition templates may use a different canvas size.
     width: 1344
     height: 768
